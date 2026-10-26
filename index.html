@@ -1,0 +1,1685 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>JAS</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Cmask id=%27m%27%3E%3Crect width=%2764%27 height=%2764%27 fill=%27%23fff%27/%3E%3Cpath d=%27M40 22V37A11 11 0 0 1 29 48H25%27 fill=%27none%27 stroke=%27%23000%27 stroke-width=%276.5%27 stroke-linecap=%27round%27/%3E%3Crect x=%2731%27 y=%2710%27 width=%2718%27 height=%2716%27 rx=%273.5%27/%3E%3Ccircle cx=%2721%27 cy=%2748%27 r=%276.5%27/%3E%3C/mask%3E%3Crect width=%2764%27 height=%2764%27 rx=%2716%27 fill=%27%2314B85A%27 mask=%27url(%23m)%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: split auth screen (brand panel + form card), then a top-nav app (Boards, Templates) that opens a full-screen board workspace */
+:root{
+  --bg:#f3f8f3; --surface:#ffffff; --surface-2:#e7f2e8; --line:#cfe1d1;
+  --fg:#11261a; --muted:#4f6b58;
+  --green:#1f7a45; --green-strong:#155c33; --mint:#7fd6a0; --leaf:#0d3b22;
+  --on-green:#ffffff; --warn:#a15c00; --warn-bg:#fff3dc; --bad:#b3261e; --bad-bg:#fde8e6; --good-bg:#dcf3e4;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --r:14px; --shadow:0 10px 30px -12px rgba(13,59,34,.25);
+  /* The board canvas stays white in both themes on purpose */
+  --canvas:#ffffff; --dot:#d3dfd6; --ink:#17241c; --sel:#1f9d5a;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0b1710; --surface:#122219; --surface-2:#173023; --line:#25402f;
+  --fg:#e3f1e7; --muted:#9dbaa6; --green:#4cc27a; --green-strong:#6fd696; --mint:#2f8f57; --leaf:#06120b;
+  --on-green:#06200f; --warn:#f0b357; --warn-bg:#33270f; --bad:#ff8a80; --bad-bg:#3a1714; --good-bg:#16351f;
+  --shadow:0 10px 30px -12px rgba(0,0,0,.6); color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0b1710; --surface:#122219; --surface-2:#173023; --line:#25402f;
+  --fg:#e3f1e7; --muted:#9dbaa6; --green:#4cc27a; --green-strong:#6fd696; --mint:#2f8f57; --leaf:#06120b;
+  --on-green:#06200f; --warn:#f0b357; --warn-bg:#33270f; --bad:#ff8a80; --bad-bg:#3a1714; --good-bg:#16351f;
+  --shadow:0 10px 30px -12px rgba(0,0,0,.6); color-scheme:dark }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55;min-height:100vh}
+body.in-board{overflow:hidden}
+h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+a{color:var(--green)}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--mint);outline-offset:2px}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.btn{border:0;border-radius:10px;padding:.7rem 1.1rem;font-weight:600;background:var(--green);color:var(--on-green);transition:background .15s}
+.btn:hover{background:var(--green-strong)}
+.btn.ghost{background:transparent;color:var(--green);box-shadow:inset 0 0 0 1.5px var(--line)}
+.btn.ghost:hover{background:var(--surface-2)}
+.btn.danger{background:var(--bad);color:#fff}
+.btn.sm{padding:.4rem .7rem;font-size:.85rem;border-radius:8px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.linkbtn{background:none;border:0;padding:0;color:var(--green);font-weight:600;text-decoration:underline;text-underline-offset:2px}
+
+/* ---------- AUTH ---------- */
+#auth{display:grid;grid-template-columns:1.05fr 1fr;min-height:100vh}
+.brand{background:var(--leaf);color:#e6f6ea;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;padding-block:40px;padding-left:max(32px,env(safe-area-inset-left,0px));padding-right:32px}
+.brand canvas{position:absolute;inset:0;width:100%;height:100%;opacity:.55}
+.brand>*{position:relative}
+.logo{display:flex;align-items:center;gap:.6rem;font-family:var(--display);font-weight:800;font-size:1.5rem;letter-spacing:.02em}
+.logo .mark{width:38px;height:38px;border-radius:10px;background:#7fd6a0;color:#0d3b22;display:grid;place-items:center;font-size:1.05rem}
+.brand h1{font-size:clamp(2.2rem,4.5vw,3.6rem);font-weight:800;max-width:14ch;color:#fff}
+.brand h1 em{font-style:normal;color:#7fd6a0}
+.brand p{max-width:42ch;color:#b9dcc4;font-size:1.05rem}
+.brand ul{list-style:none;padding:0;margin:1.2rem 0 0;display:grid;gap:.5rem;color:#cfe9d7}
+.brand li::before{content:"✓";color:#7fd6a0;font-weight:700;margin-right:.55rem}
+.brand small{color:#8fb79b}
+.formside{display:grid;place-items:center;padding-block:32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);width:100%;max-width:430px;padding:28px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--surface-2);border-radius:12px;padding:4px;margin-bottom:22px}
+.tabs button{border:0;background:transparent;padding:.6rem;border-radius:9px;font-weight:600;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+form{display:grid;gap:14px}
+label.f{display:grid;gap:5px;font-weight:600;font-size:.88rem}
+input[type=text],input[type=email],input[type=password],select{font:inherit;width:100%;padding:.68rem .8rem;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg)}
+input:focus,select:focus{border-color:var(--green);outline:none}
+.check{display:flex;gap:.6rem;align-items:flex-start;font-size:.9rem;color:var(--muted)}
+.check input{margin-top:.25rem;accent-color:var(--green);width:17px;height:17px;flex:none}
+.err{background:var(--bad-bg);color:var(--bad);border-radius:10px;padding:.6rem .8rem;font-size:.9rem}
+.note{font-size:.82rem;color:var(--muted);text-align:center}
+.empty{color:var(--muted);font-size:.92rem}
+.demo{background:var(--surface-2);border-radius:10px;padding:.7rem .85rem;font-size:.85rem;color:var(--muted);display:flex;justify-content:space-between;gap:.5rem;align-items:center;flex-wrap:wrap}
+.demo code{font-size:.82rem;color:var(--fg)}
+
+/* ---------- APP ---------- */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;gap:1rem;height:64px}
+header.top .logo{font-size:1.25rem;color:var(--fg)}
+header.top .logo .mark{width:32px;height:32px;background:var(--green);color:var(--on-green)}
+nav.main{display:flex;gap:.25rem;margin-left:auto}
+nav.main button{border:0;background:transparent;padding:.5rem .8rem;border-radius:9px;font-weight:600;color:var(--muted)}
+nav.main button[aria-current="page"]{background:var(--surface-2);color:var(--green-strong)}
+.user{display:flex;align-items:center;gap:.6rem}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--surface-2);color:var(--green-strong);display:grid;place-items:center;font-weight:700}
+main{padding-block:28px 60px}
+.view{display:grid;gap:26px}
+.hello{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.hello h2{font-size:clamp(1.6rem,3vw,2.2rem)}
+.hello p{color:var(--muted);margin:.3rem 0 0}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.sec-h h3{font-size:1.2rem}
+.sec-h span{color:var(--muted);font-size:.85rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.tcard,.bcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;text-align:left;color:var(--fg);padding:0;transition:border-color .15s,transform .15s}
+.tcard:hover,.bcard:hover{border-color:var(--green)}
+.tcard:hover{transform:translateY(-2px)}
+.thumb{background:var(--canvas);aspect-ratio:16/9;max-width:100%;border-bottom:1px solid var(--line);display:grid;place-items:center;background-image:radial-gradient(var(--dot) 1px,transparent 1px);background-size:12px 12px}
+.thumb svg{width:100%;height:100%}
+.thumb .plus{width:44px;height:44px;border-radius:12px;background:var(--green);color:var(--on-green);display:grid;place-items:center;font-size:1.6rem;font-weight:700}
+.cbody{padding:12px 14px 14px;display:grid;gap:.2rem}
+.cbody strong{font-family:var(--display);font-size:1.05rem}
+.cbody span{color:var(--muted);font-size:.85rem}
+.tag{justify-self:start;font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:var(--good-bg);color:var(--green-strong);border-radius:99px;padding:.1rem .5rem}
+.bcard .open{all:unset;cursor:pointer;display:flex;flex-direction:column}
+.bcard .open:focus-visible{outline:3px solid var(--mint);outline-offset:-3px}
+.bacts{display:flex;gap:6px;padding:0 14px 14px;flex-wrap:wrap}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chips span{background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:.3rem .75rem;font-size:.85rem;color:var(--muted)}
+.notice{background:var(--surface-2);border-radius:var(--r);padding:12px 16px;font-size:.88rem;color:var(--muted);margin:0}
+.notice b{color:var(--fg)}
+
+footer.foot{border-top:1px solid var(--line);padding-block:20px;color:var(--muted);font-size:.85rem}
+footer.foot .wrap{display:flex;gap:1rem;flex-wrap:wrap;justify-content:space-between}
+footer.foot nav{display:flex;gap:1rem;flex-wrap:wrap}
+
+/* ---------- LOBBY ---------- */
+#lobby{min-height:100vh;display:flex;flex-direction:column}
+.lnav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.lnav .wrap{display:flex;align-items:center;gap:1rem;height:64px}
+.lnav .logo{font-size:1.25rem;color:var(--fg)}
+.lnav .logo .mark,.logo-btn .mark{width:32px;height:32px;background:var(--green);color:var(--on-green)}
+.lnav nav{display:flex;gap:.25rem;margin-left:auto}
+.lnav nav button{border:0;background:transparent;padding:.5rem .7rem;border-radius:9px;font-weight:600;color:var(--muted)}
+.lnav nav button:hover{background:var(--surface-2);color:var(--fg)}
+.lnav .acts{display:flex;gap:8px}
+.logo-btn{all:unset;cursor:pointer;display:flex;align-items:center;gap:.6rem;font-family:var(--display);font-weight:800;font-size:1.25rem;letter-spacing:.02em;color:var(--fg);border-radius:10px}
+.logo-btn:focus-visible{outline:3px solid var(--mint);outline-offset:3px}
+.logo-btn .mark{border-radius:10px;display:grid;place-items:center;font-size:1.05rem}
+.hero{padding-block:56px 36px}
+.hero .wrap{display:grid;grid-template-columns:1fr 1.05fr;gap:44px;align-items:center}
+.hero h1{font-size:clamp(2.3rem,5vw,3.9rem);font-weight:800;max-width:14ch;letter-spacing:-.01em;position:relative;z-index:0}
+.hero h1 em{font-style:normal;color:var(--green);position:relative;white-space:nowrap}
+.hero h1 em::after{content:"";position:absolute;left:-2%;right:-2%;bottom:.04em;height:.28em;background:var(--mint);opacity:.45;z-index:-1;border-radius:3px}
+.hero .lead{font-size:1.12rem;color:var(--muted);max-width:46ch;margin:1rem 0 0}
+.cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}
+.cta .btn{padding:.8rem 1.25rem}
+.uses{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}
+.uses span{font-size:.82rem;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:.2rem .7rem;background:var(--surface)}
+.hero-board{position:relative;background-color:var(--canvas);background-image:radial-gradient(var(--dot) 1.2px,transparent 1.2px);background-size:18px 18px;border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);aspect-ratio:4/3;max-width:100%;overflow:hidden}
+.hero-board .hb-svg{position:absolute;inset:44px 20px 20px 62px}
+.hero-board .hb-svg svg{width:100%;height:100%}
+.hero-board .hb-top{position:absolute;left:12px;right:12px;top:10px;display:flex;align-items:center;gap:8px;font:600 .8rem var(--body);color:#41574a}
+.hero-board .hb-top i{width:10px;height:10px;border-radius:50%;background:#d3dfd6}
+.hero-board .hb-tools{position:absolute;left:12px;top:50%;transform:translateY(-50%);display:grid;gap:6px;background:#fff;border:1px solid #d6e4d9;border-radius:10px;padding:6px}
+.hero-board .hb-tools span{width:24px;height:24px;border-radius:6px;background:#eef5ef}
+.hero-board .hb-tools span:first-child{background:#dcf3e4}
+.resume{background:var(--leaf);color:#e6f6ea;border-radius:var(--r);padding:16px 20px;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.resume b{font-family:var(--display);font-size:1.1rem;color:#fff}
+.resume span{color:#b9dcc4;font-size:.88rem}
+.resume .btn{background:#7fd6a0;color:#0d3b22}
+.lsec{padding-block:44px}
+.lsec.alt{background:var(--surface);border-block:1px solid var(--line)}
+.lsec-h{display:grid;gap:.4rem;margin-bottom:22px;max-width:62ch}
+.lsec-h h2{font-size:clamp(1.6rem,3vw,2.3rem)}
+.lsec-h p{color:var(--muted);margin:0}
+.eyebrow{font-size:.74rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--green)}
+.fgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.fcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.fcard.lead{grid-column:1/-1;display:grid;grid-template-columns:1.15fr 1fr}
+.fcard.lead .thumb{aspect-ratio:auto;min-height:260px;border-bottom:0;border-right:1px solid var(--line)}
+.fcard .thumb svg{width:100%;height:100%}
+.fbody{padding:18px;display:flex;flex-direction:column;gap:.55rem;flex:1;min-width:0}
+.fbody h3{font-size:1.3rem}
+.fbody p{margin:0;color:var(--muted)}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font-size:.72rem;font-weight:700;letter-spacing:.04em;border-radius:99px;padding:.18rem .6rem}
+.pill.ok{background:var(--good-bg);color:var(--green-strong)}
+.pill.soon{background:var(--warn-bg);color:var(--warn)}
+.pill.price{background:var(--surface-2);color:var(--muted)}
+.factions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:8px}
+.caps{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.cap{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:.2rem}
+.cap b{font-family:var(--display);font-size:1rem}
+.cap span{color:var(--muted);font-size:.88rem}
+.about{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.about .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:grid;gap:.5rem;align-content:start}
+.about h3{font-size:1.15rem}
+.about p{margin:0;color:var(--muted)}
+.ph{background:var(--warn-bg);color:var(--warn);border:1px dashed currentColor;border-radius:6px;padding:0 .35rem;font-weight:700;overflow-wrap:anywhere}
+#dlg-feature ul{padding-left:1.1rem}
+@media (max-width:860px){
+  .hero .wrap,.about,.fcard.lead{grid-template-columns:1fr}
+  .fcard.lead .thumb{border-right:0;border-bottom:1px solid var(--line);min-height:0;aspect-ratio:16/9}
+  .hero{padding-block:32px 24px}
+}
+@media (max-width:620px){
+  .lnav nav{display:none}
+  .lnav .acts{margin-left:auto}
+  .fgrid{grid-template-columns:1fr}
+  .hero-board .hb-svg{inset:40px 12px 12px 52px}
+}
+
+/* ---------- BOARD WORKSPACE ---------- */
+#ws{position:fixed;inset:0;z-index:20;background:var(--bg);display:grid;grid-template-rows:auto 1fr}
+.wbar{background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding-top:calc(8px + env(safe-area-inset-top,0px));padding-bottom:8px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+.wbar .logo{font-size:1.05rem}
+.wbar .logo .mark{width:28px;height:28px;font-size:.85rem;background:var(--green);color:var(--on-green)}
+.ibtn{border:0;background:transparent;color:var(--fg);height:36px;min-width:36px;padding:0 8px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-weight:600;font-size:.88rem}
+.ibtn:hover:not(:disabled){background:var(--surface-2)}
+.ibtn:disabled{opacity:.35;cursor:default}
+.ibtn[aria-pressed="true"]{background:var(--good-bg);color:var(--green-strong)}
+.ibtn svg{width:19px;height:19px;flex:none}
+#b-title{font:600 1rem var(--body);border:1.5px solid transparent;background:transparent;color:var(--fg);border-radius:8px;padding:.35rem .5rem;width:min(320px,40vw);min-width:0}
+#b-title:hover{border-color:var(--line)}
+#b-title:focus{border-color:var(--green);background:var(--bg)}
+.status{font-size:.78rem;color:var(--muted);white-space:nowrap}
+.status.bad{color:var(--bad);font-weight:600}
+.wbar .grow{flex:1}
+.stage{position:relative;overflow:hidden;min-height:0}
+#vp{position:absolute;inset:0;background-color:var(--canvas);background-image:radial-gradient(var(--dot) 1.2px,transparent 1.2px);background-size:24px 24px;touch-action:none;cursor:default;outline:none}
+#vp.t-hand,#vp.panning{cursor:grab}
+#vp.panning:active{cursor:grabbing}
+#vp.t-sticky,#vp.t-text,#vp.t-shape,#vp.t-connector{cursor:crosshair}
+#world{position:absolute;left:0;top:0;transform-origin:0 0;--z:1}
+#links{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;z-index:0;pointer-events:none}
+#links .hit{stroke:transparent;stroke-width:16;fill:none;pointer-events:stroke;cursor:pointer}
+#links .ln{fill:none;stroke-width:2.2;stroke-linecap:round}
+#links .sel .ln{stroke:var(--sel);stroke-width:3.4}
+#links .tmp{fill:none;stroke:var(--sel);stroke-width:2;stroke-dasharray:6 5}
+
+.item{position:absolute;touch-action:none;user-select:none;-webkit-user-select:none}
+.item .content{width:100%;height:100%;white-space:pre-wrap;overflow-wrap:anywhere;outline:none;overflow:hidden;color:var(--ink);font-family:var(--body);line-height:1.35}
+.item.sticky{border-radius:3px;padding:16px;box-shadow:0 1px 2px rgba(20,40,28,.12),0 8px 18px -8px rgba(20,40,28,.3)}
+.item.text .content{font-family:var(--display);font-weight:700;line-height:1.15}
+.item.shape .sh{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.item.shape .sh *{stroke:#2b3a30;stroke-width:1.6}
+.item.shape .content{position:relative;display:flex;align-items:center;justify-content:center;text-align:center;padding:12px 18px}
+.item.shape.top .content{align-items:flex-start;justify-content:flex-start;text-align:left;font-weight:700}
+.item.shape.diamond .content{padding:18% 22%}
+.item.image img{width:100%;height:100%;object-fit:cover;display:block;border-radius:4px;pointer-events:none;box-shadow:0 6px 16px -8px rgba(20,40,28,.35)}
+.item.selected{outline:calc(2px / var(--z)) solid var(--sel);outline-offset:calc(3px / var(--z))}
+.item.pending{outline:calc(2px / var(--z)) dashed var(--sel);outline-offset:calc(4px / var(--z))}
+.item.editing .content{user-select:text;-webkit-user-select:text;cursor:text}
+.item.editing.text .content:empty::before{content:"Type something";color:#9aa8a0}
+.item.dim{opacity:.22}
+.item .chip{position:absolute;left:0;top:-6px;transform-origin:0 100%;font:700 11px/1 var(--body);color:#fff;border-radius:99px;padding:4px 8px;white-space:nowrap;letter-spacing:.02em}
+.item .rh,.item .ch{display:none;position:absolute;width:calc(14px / var(--z));height:calc(14px / var(--z));background:#fff;border:calc(2px / var(--z)) solid var(--sel);border-radius:50%;touch-action:none}
+.item .rh{right:calc(-8px / var(--z));bottom:calc(-8px / var(--z));cursor:nwse-resize;border-radius:3px}
+.item .ch{right:calc(-26px / var(--z));top:50%;margin-top:calc(-7px / var(--z));cursor:crosshair;background:var(--sel)}
+.item.solo .rh,.item.solo .ch{display:block}
+
+.tools{position:absolute;left:max(12px,env(safe-area-inset-left,0px));top:50%;transform:translateY(-50%);background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:6px;display:flex;flex-direction:column;gap:2px;z-index:3}
+.tools .ibtn{width:42px;height:42px}
+.tools .sep{height:1px;background:var(--line);margin:4px 6px}
+.popover{position:absolute;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px;display:flex;gap:2px;z-index:4}
+#shape-menu{left:calc(max(12px,env(safe-area-inset-left,0px)) + 62px)}
+.zoom{position:absolute;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:4px;display:flex;align-items:center;gap:2px;z-index:3}
+#z-pct{min-width:58px;font-variant-numeric:tabular-nums}
+.hint{position:absolute;left:50%;top:16px;transform:translateX(-50%);background:var(--leaf);color:#e6f6ea;padding:.5rem .9rem;border-radius:99px;font-size:.85rem;font-weight:600;z-index:3;max-width:calc(100% - 32px);text-align:center;pointer-events:none}
+.empty-board{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;z-index:1}
+.empty-board div{text-align:center;color:#5d7466;max-width:34ch;display:grid;gap:.4rem;padding:0 16px}
+.empty-board b{font-family:var(--display);font-size:1.4rem;color:var(--ink)}
+#ctx{position:absolute;z-index:4;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:5px;display:flex;align-items:center;gap:3px;flex-wrap:nowrap;max-width:calc(100% - 24px);overflow-x:auto}
+#ctx .vsep{width:1px;align-self:stretch;background:var(--line);margin:4px 3px;flex:none}
+.sw{width:24px;height:24px;border-radius:50%;border:1.5px solid rgba(0,0,0,.18);flex:none;padding:0}
+.sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--sel)}
+#ctx select{width:auto;padding:.3rem .5rem;font-size:.85rem;border-radius:8px;flex:none}
+#labels-panel{position:absolute;right:max(12px,env(safe-area-inset-right,0px));top:12px;width:min(320px,calc(100% - 24px));background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px;z-index:5;display:grid;gap:10px;max-height:calc(100% - 90px);overflow:auto}
+#labels-panel h3{font-size:1.05rem}
+.lrow{display:flex;align-items:center;gap:6px}
+.lrow input{padding:.35rem .5rem;font-size:.88rem;border-radius:8px;min-width:0}
+.lrow .cnt{font-size:.78rem;color:var(--muted);min-width:1.6em;text-align:right;font-variant-numeric:tabular-nums}
+.ldot{width:22px;height:22px;border-radius:50%;border:0;flex:none}
+kbd{font:600 .78rem var(--body);background:var(--surface-2);border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:.05rem .4rem}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:.45rem 1rem;align-items:center;color:var(--muted)}
+
+/* Cookie banner */
+#cookie{position:fixed;left:0;right:0;bottom:0;z-index:30;padding-bottom:max(16px,env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));pointer-events:none}
+#cookie .inner{pointer-events:auto;max-width:860px;margin:0 auto;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:16px;padding:16px 18px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+#cookie p{margin:0;flex:1 1 320px;font-size:.9rem;color:var(--muted)}
+#cookie p b{color:var(--fg)}
+#cookie .acts{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Dialogs */
+dialog{border:0;border-radius:18px;padding:0;max-width:640px;width:calc(100% - 32px);background:var(--surface);color:var(--fg);box-shadow:var(--shadow)}
+dialog::backdrop{background:rgba(6,20,12,.55)}
+.dlg-h{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line)}
+.dlg-h h2{font-size:1.3rem}
+.dlg-b{padding:18px 22px;max-height:60vh;overflow:auto;font-size:.93rem}
+.dlg-b h4{margin:1.1rem 0 .3rem;font-family:var(--display);font-size:1rem}
+.dlg-b p,.dlg-b ul{margin:.3rem 0;color:var(--muted)}
+.dlg-f{padding:14px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+.x-btn{border:0;background:var(--surface-2);color:var(--fg);width:34px;height:34px;border-radius:50%;font-size:1.1rem;flex:none}
+.prefs{display:grid;gap:10px}
+.pref{display:flex;justify-content:space-between;gap:12px;align-items:center;background:var(--surface-2);border-radius:12px;padding:12px 14px}
+.pref b{display:block;color:var(--fg)}
+.pref span{color:var(--muted);font-size:.85rem}
+.pref input{accent-color:var(--green);width:20px;height:20px;flex:none}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(16px + env(safe-area-inset-top,0px));background:var(--leaf);color:#e6f6ea;padding:.65rem 1rem;border-radius:10px;z-index:40;font-weight:600;font-size:.9rem;box-shadow:var(--shadow)}
+
+@media (max-width:860px){
+  #auth{grid-template-columns:1fr}
+  .brand{padding-block:28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));gap:18px}
+  .brand ul,.brand small{display:none}
+}
+@media (max-width:620px){
+  nav.main{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);justify-content:space-around;padding:6px max(16px,env(safe-area-inset-right,0px)) max(6px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));z-index:6;margin:0}
+  main{padding-bottom:110px}
+  .user .uname{display:none}
+  .user{margin-left:auto}
+  body.in-app:not(.in-board) #cookie{bottom:62px}
+  .wbar{gap:4px}
+  .wbar .logo,.wbar .lbl{display:none}
+  #b-title{width:0;flex:1}
+  .status{font-size:.72rem}
+  .wbar .grow{display:none}
+  .tools{top:auto;transform:none;left:0;right:0;margin-inline:auto;width:max-content;bottom:calc(12px + env(safe-area-inset-bottom,0px));flex-direction:row;max-width:calc(100% - 24px);overflow-x:auto}
+  .tools .sep{width:1px;height:auto;margin:6px 4px}
+  .tools .ibtn{width:40px;height:40px;flex:none}
+  #shape-menu{left:50%!important;translate:-50% 0;top:auto!important;bottom:calc(70px + env(safe-area-inset-bottom,0px))}
+  .zoom{bottom:calc(72px + env(safe-area-inset-bottom,0px))}
+  .zoom #z-in,.zoom #z-out{display:none}
+}
+/* Logo: icon + wordmark from the JAS logo files (jas/logo/) */
+svg.mark{background:none!important;border-radius:0!important;display:block;flex:none;overflow:visible}
+svg.word{display:block;height:.78em;width:1.81em;flex:none;color:currentColor;overflow:visible}
+.logo,.logo-btn{gap:.55rem}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.brand .logo{color:#fff}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <mask id="jas-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64"><rect width="64" height="64" fill="#fff"/>
+      <path d="M40 22 V37 A11 11 0 0 1 29 48 H25" fill="none" stroke="#000" stroke-width="6.5" stroke-linecap="round"/>
+      <rect x="31" y="10" width="18" height="16" rx="3.5" fill="#000"/><circle cx="21" cy="48" r="6.5" fill="#000"/></mask>
+    <symbol id="jas-mark" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#14B85A" mask="url(#jas-cut)"/></symbol>
+    <symbol id="jas-word" viewBox="82 10 102 44"><g fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M101 17.5 V37 A12 12 0 0 1 89 49 H87"/><path d="M113.5 46.5 L129 17.5 L144.5 46.5 M119.5 37 H138.5"/>
+      <path d="M179 23 C178 18.5 174 16 168 16 C161.5 16 157 19.5 157 24.5 C157 35 180 29.5 180 40 C180 45.5 175 48.5 168 48.5 C161.5 48.5 157 46 156 41.5"/></g></symbol>
+  </defs>
+</svg>
+
+<!-- ============ LOBBY ============ -->
+<section id="lobby">
+  <header class="lnav">
+    <div class="wrap">
+      <button class="logo-btn" data-scroll="lobby-top" aria-label="JAS home"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#jas-mark"/></svg><svg class="word" viewBox="0 0 102 44" aria-hidden="true"><use href="#jas-word" width="102" height="44"/></svg><span class="sr">JAS</span></button>
+      <nav aria-label="Lobby">
+        <button data-scroll="features">Features</button>
+        <button data-scroll="workspace">Notes Workspace</button>
+        <button data-scroll="about">About</button>
+      </nav>
+      <div class="acts">
+        <button class="btn ghost" id="l-signin" data-signin style="padding:.45rem .9rem">Sign in</button>
+        <button class="btn" id="l-myboards" data-myboards hidden style="padding:.45rem .9rem">My boards</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="lobby-top">
+      <div class="wrap">
+        <div>
+          <span class="eyebrow">Notes · Plans · Ideas</span>
+          <h1>One open canvas for <em>everything</em> you plan.</h1>
+          <p class="lead">JAS is a place to take notes, plan, and get organized. Lay out a trip, map a business idea, or sort a messy to-do list on a board you can shape however you like.</p>
+          <div class="cta">
+            <button class="btn" data-scroll="features">Explore features</button>
+            <button class="btn ghost" id="h-signin" data-signin>Sign in</button>
+          </div>
+          <div class="uses" aria-label="Things people plan with JAS"><span>Trips</span><span>Business ideas</span><span>Events</span><span>Projects</span><span>Brainstorms</span></div>
+        </div>
+        <div class="hero-board" aria-label="Preview of a JAS board with sticky notes, shapes and arrows">
+          <div class="hb-top"><i></i><i></i><i></i><span id="hb-title">Year-end party plan</span></div>
+          <div class="hb-tools" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="hb-svg" id="hb-svg"></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="wrap" id="resume-wrap" hidden><div class="resume" id="resume"></div></div>
+
+    <section class="lsec" id="features">
+      <div class="wrap">
+        <div class="lsec-h">
+          <span class="eyebrow">Feature marketplace</span>
+          <h2>Pick the tools you need</h2>
+          <p>Each feature is a mode inside JAS. Start with Notes Workspace today. More planners are on the way.</p>
+        </div>
+        <div class="fgrid" id="feature-grid"></div>
+      </div>
+    </section>
+
+    <section class="lsec alt" id="workspace">
+      <div class="wrap">
+        <div class="lsec-h">
+          <span class="eyebrow">Notes Workspace</span>
+          <h2>A big white canvas, ready when you are</h2>
+          <p>Everything below already works in the demo. Boards save automatically, but only in the browser you use.</p>
+        </div>
+        <div class="caps" id="caps"></div>
+      </div>
+    </section>
+
+    <section class="lsec" id="about">
+      <div class="wrap">
+        <div class="lsec-h"><span class="eyebrow">About JAS</span><h2>Who made JAS, and why</h2></div>
+        <div class="about">
+          <div class="panel">
+            <h3>Who made it</h3>
+            <p>JAS was created by <b style="color:var(--fg)">Jancarl Angelo H. Santiago</b>.</p>
+            <p><span class="ph">[Short creator bio or team description to be confirmed]</span></p>
+          </div>
+          <div class="panel">
+            <h3>What it's for</h3>
+            <p>JAS was made to give people one simple place to write things down, plan, and stay organized. Instead of juggling notes apps, spreadsheets, and chat threads, you can see the whole plan on one board and move pieces around as it changes.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      <span>© 2026 JAS · Demo version</span>
+      <nav>
+        <button class="linkbtn" data-open="dlg-privacy">Privacy Policy</button>
+        <button class="linkbtn" data-open="dlg-terms">Terms of Service</button>
+        <button class="linkbtn" data-open="dlg-cookies">Cookie settings</button>
+      </nav>
+    </div>
+  </footer>
+</section>
+
+<!-- ============ AUTH SCREEN ============ -->
+<section id="auth" hidden>
+  <div class="brand">
+    <canvas id="leaves" aria-hidden="true"></canvas>
+    <div class="logo"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#jas-mark"/></svg><svg class="word" viewBox="0 0 102 44" aria-hidden="true"><use href="#jas-word" width="102" height="44"/></svg><span class="sr">JAS</span></div>
+    <div>
+      <h1>Plan anything on one <em>open</em> board.</h1>
+      <p>JAS is a visual planning space. Drop sticky notes, connect ideas with arrows, add photos, and keep every trip, business idea, or event plan in one place.</p>
+      <ul>
+        <li>Travel itineraries and budgets</li>
+        <li>Business plans and launch roadmaps</li>
+        <li>Events, projects, and weekly plans</li>
+      </ul>
+    </div>
+    <small>Demo build · Boards are saved in this browser</small>
+  </div>
+
+  <div class="formside">
+    <div class="card">
+      <button type="button" class="linkbtn" data-lobby style="display:inline-block;margin-bottom:16px">← Back to JAS home</button>
+      <div class="tabs" role="tablist">
+        <button id="tab-in" role="tab" aria-selected="true" aria-controls="form-in">Sign in</button>
+        <button id="tab-up" role="tab" aria-selected="false" aria-controls="form-up">Sign up</button>
+      </div>
+
+      <form id="form-in" novalidate>
+        <div>
+          <h2 style="font-size:1.6rem">Welcome back</h2>
+          <p class="empty" style="margin:.25rem 0 0">Sign in to continue planning.</p>
+        </div>
+        <div id="in-err" class="err" hidden></div>
+        <label class="f">Email<input id="in-email" type="email" autocomplete="email" placeholder="juan@email.com" required></label>
+        <label class="f">Password<input id="in-pass" type="password" autocomplete="current-password" placeholder="Your password" required></label>
+        <label class="check"><input id="in-remember" type="checkbox" checked>Keep me signed in on this device</label>
+        <button class="btn" type="submit">Sign in</button>
+        <div class="demo"><span>Demo: <code>demo@jas.edu.ph</code> / <code>jas12345</code></span><button type="button" class="linkbtn" id="fill-demo">Use demo</button></div>
+        <p class="note">Wala pang account? <button type="button" class="linkbtn" data-tab="up">Create one</button></p>
+      </form>
+
+      <form id="form-up" novalidate hidden>
+        <div>
+          <h2 style="font-size:1.6rem">Create your account</h2>
+          <p class="empty" style="margin:.25rem 0 0">Libre ito. Takes less than a minute.</p>
+        </div>
+        <div id="up-err" class="err" hidden></div>
+        <label class="f">Full name<input id="up-name" type="text" autocomplete="name" placeholder="Juan Dela Cruz" required></label>
+        <label class="f">Email<input id="up-email" type="email" autocomplete="email" placeholder="juan@email.com" required></label>
+        <label class="f">What will you plan first?
+          <select id="up-focus">
+            <option value="travel">A trip</option>
+            <option value="business">A business or project</option>
+            <option value="event">An event</option>
+            <option value="blank">Something else</option>
+          </select>
+        </label>
+        <label class="f">Password<input id="up-pass" type="password" autocomplete="new-password" placeholder="At least 8 characters" required></label>
+        <label class="f">Confirm password<input id="up-pass2" type="password" autocomplete="new-password" placeholder="Type it again" required></label>
+        <label class="check"><input id="up-terms" type="checkbox">
+          <span>I agree to the <button type="button" class="linkbtn" data-open="dlg-terms">Terms of Service</button> and have read the <button type="button" class="linkbtn" data-open="dlg-privacy">Privacy Policy</button>.</span></label>
+        <button class="btn" type="submit" id="up-submit" disabled>Create account</button>
+        <p class="note">May account na? <button type="button" class="linkbtn" data-tab="in">Sign in</button></p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ============ APP ============ -->
+<section id="app" hidden>
+  <header class="top">
+    <div class="wrap">
+      <button class="logo-btn" data-lobby title="Back to the JAS home page"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#jas-mark"/></svg><svg class="word" viewBox="0 0 102 44" aria-hidden="true"><use href="#jas-word" width="102" height="44"/></svg><span class="sr">JAS</span></button>
+      <nav class="main" aria-label="Main">
+        <button data-view="home" aria-current="page">Boards</button>
+        <button data-view="templates">Templates</button>
+      </nav>
+      <div class="user">
+        <div class="avatar" id="u-initial">J</div>
+        <span class="uname" id="u-name">Juan</span>
+        <button class="btn ghost" id="logout" style="padding:.45rem .8rem">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- HOME -->
+    <div class="view" id="v-home">
+      <div class="hello">
+        <div>
+          <h2 id="greet">Kumusta, Juan!</h2>
+          <p>What are we planning today?</p>
+        </div>
+        <button class="btn" id="new-blank">+ New blank board</button>
+      </div>
+      <div class="chips" aria-label="Things you can plan"><span>Trips</span><span>Business plans</span><span>Events</span><span>Projects</span><span>Weekly plans</span><span>Brainstorms</span></div>
+      <section>
+        <div class="sec-h"><h3>Start something new</h3><button class="linkbtn" data-view="templates">See all templates</button></div>
+        <div class="grid" id="quick-templates"></div>
+      </section>
+      <section>
+        <div class="sec-h"><h3>Your boards</h3><span id="board-count"></span></div>
+        <div class="grid" id="boards"></div>
+      </section>
+      <p class="notice"><b>Saved in this browser.</b> Boards auto-save on this device only. They don't sync to other devices yet, and clearing your browser data deletes them.</p>
+    </div>
+
+    <!-- TEMPLATES -->
+    <div class="view" id="v-templates" hidden>
+      <div class="hello"><div><h2>Templates</h2><p>Optional starting points. Every template opens as a normal board you can change freely.</p></div></div>
+      <div class="grid" id="all-templates"></div>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      <span>© 2026 JAS · Demo version</span>
+      <nav>
+        <button class="linkbtn" data-open="dlg-privacy">Privacy Policy</button>
+        <button class="linkbtn" data-open="dlg-terms">Terms of Service</button>
+        <button class="linkbtn" data-open="dlg-cookies">Cookie settings</button>
+      </nav>
+    </div>
+  </footer>
+</section>
+
+<!-- ============ BOARD WORKSPACE ============ -->
+<section id="ws" hidden aria-label="Board workspace">
+  <div class="wbar">
+    <button class="ibtn" id="b-back" title="Back to boards"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg><span class="lbl">Boards</span></button>
+    <div class="logo"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#jas-mark"/></svg><svg class="word" viewBox="0 0 102 44" aria-hidden="true"><use href="#jas-word" width="102" height="44"/></svg><span class="sr">JAS</span></div>
+    <input id="b-title" type="text" aria-label="Board title" maxlength="80">
+    <span class="status" id="b-status" role="status">Saved</span>
+    <span class="grow"></span>
+    <button class="ibtn" id="b-undo" title="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 010 11H11"/></svg></button>
+    <button class="ibtn" id="b-redo" title="Redo (Ctrl+Shift+Z)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 000 11H13"/></svg></button>
+    <button class="ibtn" id="b-labels" aria-pressed="false" title="Labels"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0L3 13V3h10l7.6 7.6a2 2 0 010 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span class="lbl">Labels</span></button>
+    <button class="ibtn" data-open="dlg-help" title="Shortcuts and help"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.5 9.2a2.6 2.6 0 015 .8c0 1.8-2.5 2.2-2.5 3.8"/><circle cx="12" cy="17.2" r=".6" fill="currentColor"/></svg></button>
+  </div>
+
+  <div class="stage" id="stage">
+    <div id="vp" tabindex="0" aria-label="Board canvas">
+      <div id="world">
+        <svg id="links" aria-hidden="true"><defs id="markers"></defs><g id="link-g"></g><path id="tmp-link" class="tmp" d=""/></svg>
+        <div id="items"></div>
+      </div>
+    </div>
+
+    <div class="empty-board" id="empty-board" hidden><div><b>Blank canvas</b><span>Double-click anywhere to add a sticky note, or pick a tool from the toolbar.</span></div></div>
+    <div class="hint" id="hint" hidden></div>
+
+    <div class="tools" role="toolbar" aria-label="Board tools">
+      <button class="ibtn" data-tool="select" aria-pressed="true" title="Select and move (V)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M5 3l14 7.5-6.2 1.7L10 18.5z"/></svg></button>
+      <button class="ibtn" data-tool="hand" aria-pressed="false" title="Pan the board (H, or hold Space)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V5.5a1.5 1.5 0 013 0V12M11 11.5v-8a1.5 1.5 0 013 0V12M14 11.5V5a1.5 1.5 0 013 0v8.5M17 9.5a1.5 1.5 0 013 0V15a7 7 0 01-7 7h-1.2a7 7 0 01-5.6-2.8L3.5 15.6a1.6 1.6 0 012.4-2.1L8 15.5"/></svg></button>
+      <div class="sep"></div>
+      <button class="ibtn" data-tool="sticky" aria-pressed="false" title="Sticky note (N)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 4h16v10l-6 6H4z"/><path d="M14 20v-6h6"/></svg></button>
+      <button class="ibtn" data-tool="text" aria-pressed="false" title="Text (T)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 6V4.5h14V6M12 4.5v15M9 19.5h6"/></svg></button>
+      <button class="ibtn" data-tool="shape" aria-pressed="false" title="Shape (S)" id="shape-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="10" height="10" rx="1.5"/><circle cx="16" cy="8" r="5"/></svg></button>
+      <button class="ibtn" data-tool="connector" aria-pressed="false" title="Connector arrow (C)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><path d="M6.5 17.5L19 5M12 5h7v7"/></svg></button>
+      <button class="ibtn" id="img-btn" title="Image (I)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-9 9"/></svg></button>
+      <input type="file" id="img-input" accept="image/*" hidden>
+    </div>
+
+    <div class="popover" id="shape-menu" hidden role="menu">
+      <button class="ibtn" data-shape="rect" title="Rectangle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="1.5"/></svg></button>
+      <button class="ibtn" data-shape="ellipse" title="Ellipse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9.5" ry="7"/></svg></button>
+      <button class="ibtn" data-shape="diamond" title="Diamond"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l9 9-9 9-9-9z"/></svg></button>
+    </div>
+
+    <div id="ctx" hidden role="toolbar" aria-label="Selection options"></div>
+    <aside id="labels-panel" hidden aria-label="Labels"></aside>
+
+    <div class="zoom">
+      <button class="ibtn" id="z-out" title="Zoom out (−)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+      <button class="ibtn" id="z-pct" title="Reset to 100%">100%</button>
+      <button class="ibtn" id="z-in" title="Zoom in (+)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button>
+      <button class="ibtn" id="z-fit" title="Fit to screen (Shift+1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><span class="lbl">Fit</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COOKIE BANNER ============ -->
+<div id="cookie" hidden>
+  <div class="inner" role="region" aria-label="Cookie consent">
+    <p><b>We use cookies.</b> JAS uses essential cookies to keep you signed in, and optional ones to remember your preferences and improve the site. Read our <button class="linkbtn" data-open="dlg-privacy">Privacy Policy</button>.</p>
+    <div class="acts">
+      <button class="btn ghost" data-open="dlg-cookies">Settings</button>
+      <button class="btn ghost" id="ck-essential">Essential only</button>
+      <button class="btn" id="ck-accept">Accept all</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ DIALOGS ============ -->
+<dialog id="dlg-privacy">
+  <div class="dlg-h"><h2>Privacy Policy</h2><button class="x-btn" data-close aria-label="Close">×</button></div>
+  <div class="dlg-b">
+    <p><i>Last updated: October 25, 2026</i></p>
+    <p>This Privacy Policy explains what information JAS ("we") collects, how we use it, and your rights, in line with the Philippine Data Privacy Act of 2012 (RA 10173).</p>
+    <h4>1. Information we collect</h4>
+    <ul><li>Account details: full name, email, and what you said you want to plan first.</li><li>Board content: titles, notes, shapes, labels, connectors, and images you add.</li><li>Cookie and display preferences.</li></ul>
+    <h4>2. How we use it</h4>
+    <ul><li>To create and secure your account.</li><li>To save and show your boards.</li><li>To improve JAS and its templates (only if you allow analytics cookies).</li></ul>
+    <h4>3. Where your data is stored</h4>
+    <p>In this demo version, all data, including images on your boards, stays in your own browser (local storage). Nothing is sent to a server, and boards do not sync between devices. Clearing your browser data deletes your account and boards.</p>
+    <h4>4. Sharing</h4>
+    <p>We do not sell or share your personal information with third parties. Boards are private to the browser they were made in.</p>
+    <h4>5. Your rights</h4>
+    <p>You may access, correct, or delete your data at any time. You can delete a board from your Boards page and withdraw cookie consent through Cookie settings.</p>
+    <h4>6. Minors</h4>
+    <p>Users below 18 should use JAS with the knowledge of a parent or guardian.</p>
+    <h4>7. Contact</h4>
+    <p>Questions? Email privacy@jas-planner.example</p>
+  </div>
+  <div class="dlg-f"><button class="btn" data-close>Got it</button></div>
+</dialog>
+
+<dialog id="dlg-terms">
+  <div class="dlg-h"><h2>Terms of Service</h2><button class="x-btn" data-close aria-label="Close">×</button></div>
+  <div class="dlg-b">
+    <p><i>Last updated: October 25, 2026</i></p>
+    <p>By creating an account or using JAS, you agree to these terms.</p>
+    <h4>1. Use of the service</h4>
+    <p>JAS is a visual planning tool for trips, businesses, events, projects, and other personal or work plans.</p>
+    <h4>2. Your account</h4>
+    <ul><li>Give accurate information when signing up.</li><li>Keep your password private. You are responsible for activity on your account.</li></ul>
+    <h4>3. Your content</h4>
+    <ul><li>You own what you put on your boards.</li><li>Only add images and text you have the right to use.</li><li>Do not use JAS for illegal, harmful, or abusive content.</li></ul>
+    <h4>4. Acceptable use</h4>
+    <p>Do not try to break, hack, or overload the site.</p>
+    <h4>5. Demo limitations</h4>
+    <p>This is a demo. Boards are stored only in your browser and can be lost if browser data is cleared or storage runs out. There is no backup, export, or device sync yet. Keep copies of anything important.</p>
+    <h4>6. Termination</h4>
+    <p>We may suspend accounts that break these terms. You may delete your boards at any time.</p>
+    <h4>7. Changes</h4>
+    <p>We may update these terms. Continued use means you accept the updated terms.</p>
+  </div>
+  <div class="dlg-f"><button class="btn ghost" data-close>Close</button><button class="btn" id="agree-terms">I agree</button></div>
+</dialog>
+
+<dialog id="dlg-cookies">
+  <div class="dlg-h"><h2>Cookie settings</h2><button class="x-btn" data-close aria-label="Close">×</button></div>
+  <div class="dlg-b">
+    <div class="prefs">
+      <label class="pref"><span><b>Essential</b><span>Needed for sign-in, security, and saving your boards. Always on.</span></span><input type="checkbox" checked disabled></label>
+      <label class="pref"><span><b>Preferences</b><span>Remembers the last board you opened.</span></span><input type="checkbox" id="ck-pref"></label>
+      <label class="pref"><span><b>Analytics</b><span>Helps us see which templates people use most.</span></span><input type="checkbox" id="ck-analytics"></label>
+    </div>
+  </div>
+  <div class="dlg-f"><button class="btn" id="ck-save">Save preferences</button></div>
+</dialog>
+
+<dialog id="dlg-help">
+  <div class="dlg-h"><h2>Using the board</h2><button class="x-btn" data-close aria-label="Close">×</button></div>
+  <div class="dlg-b">
+    <p>Double-click empty space to add a sticky note. Double-click any note, text, or shape to edit it. Drag the green dot on a selected item onto another item to connect them.</p>
+    <h4>Shortcuts</h4>
+    <div class="keys">
+      <span><kbd>V</kbd></span><span>Select and move</span>
+      <span><kbd>H</kbd> or hold <kbd>Space</kbd></span><span>Pan the board</span>
+      <span><kbd>N</kbd> <kbd>T</kbd> <kbd>S</kbd></span><span>Sticky note, text, shape</span>
+      <span><kbd>C</kbd></span><span>Connector arrow</span>
+      <span><kbd>I</kbd></span><span>Add an image (you can also paste or drop one)</span>
+      <span>Mouse wheel, or pinch</span><span>Zoom in and out where your pointer is</span>
+      <span><kbd>Shift</kbd> + wheel, or drag empty space</span><span>Move around the board</span>
+      <span><kbd>Shift</kbd> + <kbd>1</kbd></span><span>Fit board to screen</span>
+      <span><kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd></span><span>Undo / redo</span>
+      <span><kbd>Ctrl</kbd> + <kbd>D</kbd></span><span>Duplicate selection</span>
+      <span><kbd>Delete</kbd></span><span>Delete selection</span>
+      <span><kbd>Enter</kbd></span><span>Edit the selected item</span>
+      <span><kbd>Shift</kbd> + click</span><span>Select several items</span>
+      <span>Arrow keys</span><span>Nudge selection (hold Shift for bigger steps)</span>
+      <span><kbd>Esc</kbd></span><span>Stop editing or clear selection</span>
+    </div>
+  </div>
+  <div class="dlg-f"><button class="btn" data-close>Got it</button></div>
+</dialog>
+
+<dialog id="dlg-feature">
+  <div class="dlg-h"><h2 id="df-title">Feature</h2><button class="x-btn" data-close aria-label="Close">×</button></div>
+  <div class="dlg-b" id="df-body"></div>
+  <div class="dlg-f" id="df-foot"></div>
+</dialog>
+
+<div id="toast" class="toast" hidden></div>
+
+<script>
+/* ---------------- Storage (falls back to memory if blocked) ---------------- */
+const mem = {};
+let storageOK = true;
+try{ localStorage.setItem('jas_probe','1'); localStorage.removeItem('jas_probe'); }catch(e){ storageOK = false; }
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v==null ? (k in mem ? mem[k] : d) : JSON.parse(v); }catch(e){ return k in mem ? mem[k] : d; } },
+  set(k, v){ mem[k] = v; try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } },
+  del(k){ delete mem[k]; try{ localStorage.removeItem(k); }catch(e){} }
+};
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+
+async function hash(pw){
+  try{
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('jas:' + pw));
+    return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  }catch(e){ let h=0; for(const c of 'jas:'+pw){ h=(h*31 + c.charCodeAt(0))|0 } return 'f'+h; }
+}
+
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true, 2400); }
+function ago(t){
+  const s = (Date.now()-t)/1000;
+  if(s<60) return 'just now'; if(s<3600) return Math.floor(s/60)+' min ago'; if(s<86400) return Math.floor(s/3600)+' hr ago';
+  return new Date(t).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});
+}
+
+/* ---------------- Palettes ---------------- */
+const FILLS = ['#fff3a3','#c9f0d3','#b8ecdf','#cfe3ff','#ffd6e3','#ffd9b0','#e2d6ff','#ffffff','#e6e9e7'];
+const INKS = ['#17241c','#1f7a45','#1d4ed8','#b3261e','#a15c00','#7c3aed'];
+const LINE_COLORS = ['#2b3a30','#1f7a45','#1d4ed8','#b3261e','#a15c00'];
+const LABEL_COLORS = ['#1f7a45','#1d4ed8','#b3261e','#a15c00','#7c3aed','#0e7490','#be185d','#44524a'];
+const SIZES = [['S',14],['M',16],['L',20],['XL',28],['XXL',40]];
+const DEF = {
+  sticky:{w:200,h:200,color:'#fff3a3',fs:16},
+  text:{w:280,h:56,color:'#17241c',fs:28},
+  shape:{w:200,h:120,color:'#c9f0d3',fs:16},
+  image:{w:320,h:220,color:'#ffffff',fs:16}
+};
+const defaultLabels = () => [
+  {id:uid(),name:'Idea',color:'#1f7a45'},{id:uid(),name:'To do',color:'#1d4ed8'},
+  {id:uid(),name:'Important',color:'#b3261e'},{id:uid(),name:'Done',color:'#44524a'}
+];
+
+/* ---------------- Templates ---------------- */
+function builder(labels){
+  const items=[], links=[], keys={}; let z=1;
+  const L = Object.fromEntries(labels.map(l=>[l.key,l.id]));
+  return {
+    items, links,
+    add(key,type,x,y,w,h,props={}){ const id=uid(); keys[key]=id; const {label,...rest}=props;
+      items.push({id,type,x,y,w,h,text:'',color:DEF[type].color,fs:DEF[type].fs,label:label?L[label]:null,shape:'rect',z:z++,...rest}); },
+    link(a,b,props={}){ links.push({id:uid(),from:keys[a],to:keys[b],arrow:true,color:'#2b3a30',...props}); }
+  };
+}
+const mkLabels = arr => arr.map(([key,name,color])=>({key,id:uid(),name,color}));
+const stripKeys = labels => labels.map(({key,...l})=>l);
+const TEMPLATES = [
+  { id:'blank', name:'Blank board', desc:'An empty white canvas. Start from nothing.', tag:'Start fresh',
+    build:()=>({title:'Untitled board', items:[], links:[], labels:defaultLabels()}) },
+  { id:'travel', name:'Travel itinerary', desc:'Day-by-day plan with transport, stays, activities, and a budget box.', tag:'Travel',
+    build:()=>{
+      const labels = mkLabels([['tr','Transport','#1d4ed8'],['st','Stay','#7c3aed'],['ac','Activity','#1f7a45'],['fd','Food','#a15c00']]);
+      const b = builder(labels);
+      b.add('title','text',0,-170,620,56,{text:'Palawan trip · 3 days',fs:40});
+      const days=[['d1','Day 1 · Puerto Princesa',[['Flight MNL → PPS\n7:00 AM','tr','#cfe3ff'],['Check in at hotel near Baywalk','st','#e2d6ff'],['Dinner: seafood at Baywalk','fd','#ffd9b0']]],
+                  ['d2','Day 2 · Sabang',[['Underground River tour\nBook the permit 2 weeks ahead','ac','#c9f0d3'],['Lunch is included in the tour','fd','#ffd9b0'],['Night market for pasalubong','ac','#c9f0d3']]],
+                  ['d3','Day 3 · Honda Bay',[['Island hopping, 8 AM pickup','ac','#c9f0d3'],['Check out by 12 NN','st','#e2d6ff'],['Flight PPS → MNL\n6:30 PM','tr','#cfe3ff']]]];
+      days.forEach(([k,head,notes],i)=>{
+        const x=i*290;
+        b.add(k,'text',x,-80,250,40,{text:head,fs:20});
+        notes.forEach(([t,l,c],j)=>b.add(k+'n'+j,'sticky',x,j*175,250,155,{text:t,label:l,color:c}));
+      });
+      b.link('d1','d2'); b.link('d2','d3');
+      b.add('budget','shape',880,0,270,250,{text:'Budget per person\n\nFlights  ₱6,500\nHotel, 2 nights  ₱4,000\nTours  ₱3,800\nFood  ₱2,500\n\nTotal  ₱16,800',color:'#ffffff',fs:14,top:true});
+      b.add('pack','sticky',880,290,270,150,{text:'Pack: sunscreen, dry bag, IDs, cash for environmental fees',color:'#fff3a3'});
+      return {title:'Palawan trip', items:b.items, links:b.links, labels:stripKeys(labels)};
+    } },
+  { id:'business', name:'Business plan', desc:'One-page canvas for problem, solution, customers, money, and metrics.', tag:'Business',
+    build:()=>{
+      const labels = mkLabels([['as','Assumption','#a15c00'],['ok','Validated','#1f7a45'],['rk','Risk','#b3261e']]);
+      const b = builder(labels);
+      b.add('title','text',0,-110,700,56,{text:'Coffee cart business plan',fs:40});
+      const secs=[['p','Problem',0,0,[['Office workers near Ortigas wait 15+ min for coffee','ok','#c9f0d3'],['Cafés are too pricey for a daily cup','as','#ffd9b0']]],
+                  ['s','Solution',330,0,[['Coffee cart in building lobbies, 6–10 AM','','#fff3a3'],['Pre-order by chat, pick up in 2 minutes','as','#ffd9b0']]],
+                  ['c','Customers',660,0,[['BPO and office staff, 22–40 years old','ok','#c9f0d3'],['Students from nearby universities','as','#ffd9b0']]],
+                  ['r','Revenue',0,330,[['Iced coffee ₱90, hot ₱70','','#fff3a3'],['Suki card: 20 cups for ₱1,300','as','#ffd9b0']]],
+                  ['k','Costs',330,330,[['Cart and machine: ₱180,000 one-time','','#fff3a3'],['Lobby rental fee is still unknown','rk','#ffd6e3']]],
+                  ['m','Key metrics',660,330,[['Target: 150 cups a day by month 3','','#cfe3ff'],['Repeat buyers: 40% or more','','#cfe3ff']]]];
+      secs.forEach(([k,name,x,y,notes])=>{
+        b.add(k,'shape',x,y,300,300,{text:name,color:'#f4f8f5',fs:20,top:true});
+        notes.forEach(([t,l,c],j)=>b.add(k+j,'sticky',x+20,y+60+j*118,260,100,{text:t,label:l||undefined,color:c,fs:14}));
+      });
+      b.add('next','sticky',1010,330,240,150,{text:'Next step: run a 2-week pop-up to test demand',color:'#c9f0d3'});
+      b.link('p','s'); b.link('s','c'); b.link('m','next');
+      return {title:'Coffee cart business plan', items:b.items, links:b.links, labels:stripKeys(labels)};
+    } },
+  { id:'event', name:'Event plan', desc:'Mind map for venue, food, program, guests, and budget around one event.', tag:'Events',
+    build:()=>{
+      const labels = mkLabels([['td','To do','#1d4ed8'],['wt','Waiting','#a15c00'],['bk','Booked','#1f7a45']]);
+      const b = builder(labels);
+      b.add('core','shape',0,0,260,140,{text:'Year-end party\nDec 19 · 80 guests',shape:'ellipse',color:'#c9f0d3',fs:20});
+      const nodes=[['venue','Venue',-420,-220],['food','Food',380,-220],['prog','Program',-420,240],['budget','Budget',380,240],['guests','Guests',30,-320]];
+      nodes.forEach(([k,t,x,y])=>{ b.add(k,'shape',x,y,200,90,{text:t,color:'#ffffff',fs:16}); b.link('core',k); });
+      b.add('vs','sticky',-700,-245,220,140,{text:'Shortlist: function hall in Pasig or rooftop in BGC',label:'td',fs:14});
+      b.add('fs','sticky',640,-245,220,140,{text:'Lechon + buffet for 80. Caterer quote: ₱54,000',label:'wt',color:'#ffd9b0',fs:14});
+      b.add('ps','sticky',-700,215,220,140,{text:'Host, games, raffle, awards at 9 PM',label:'td',fs:14});
+      b.add('bs','sticky',640,215,220,140,{text:'Approved budget: ₱150,000',label:'bk',color:'#c9f0d3',fs:14});
+      b.add('gs','sticky',20,-520,220,140,{text:'Send invites by Nov 28',label:'td',color:'#cfe3ff',fs:14});
+      b.link('venue','vs',{arrow:false}); b.link('food','fs',{arrow:false}); b.link('prog','ps',{arrow:false}); b.link('budget','bs',{arrow:false}); b.link('guests','gs',{arrow:false});
+      b.add('go','shape',30,300,200,120,{text:'Go / no-go\nDec 1',shape:'diamond',color:'#ffd9b0',fs:14});
+      b.link('core','go');
+      return {title:'Year-end party plan', items:b.items, links:b.links, labels:stripKeys(labels)};
+    } }
+];
+
+/* ---------------- Auth ---------------- */
+let me = null;
+const users = () => store.get('jas_users', {});
+const boardsKey = () => 'jas_boards:' + me.email;
+const loadBoards = () => store.get(boardsKey(), []);
+function newBoardFrom(tplId, titleOverride){
+  const t = TEMPLATES.find(x=>x.id===tplId) || TEMPLATES[0];
+  const d = t.build();
+  return { id:uid(), title:titleOverride||d.title, items:d.items, links:d.links, labels:d.labels, assets:{}, view:null, created:Date.now(), updated:Date.now() };
+}
+async function seedDemo(){
+  const u = users();
+  if(!u['demo@jas.edu.ph']){
+    u['demo@jas.edu.ph'] = { name:'Juan Dela Cruz', email:'demo@jas.edu.ph', focus:'travel', pass: await hash('jas12345') };
+    store.set('jas_users', u);
+  }
+  const k = 'jas_boards:demo@jas.edu.ph';
+  if(!store.get(k, null)){
+    const a = newBoardFrom('travel','Palawan trip (sample)'); a.updated = Date.now()-3600e3*5;
+    const b = newBoardFrom('business','Coffee cart business plan (sample)'); b.updated = Date.now()-86400e3*2;
+    store.set(k, [a,b]);
+  }
+}
+
+function switchTab(which){
+  $('#tab-in').setAttribute('aria-selected', which==='in');
+  $('#tab-up').setAttribute('aria-selected', which==='up');
+  $('#form-in').hidden = which!=='in';
+  $('#form-up').hidden = which!=='up';
+  $('#in-err').hidden = $('#up-err').hidden = true;
+}
+$('#tab-in').onclick = ()=>switchTab('in');
+$('#tab-up').onclick = ()=>switchTab('up');
+$$('[data-tab]').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+$('#fill-demo').onclick = ()=>{ $('#in-email').value='demo@jas.edu.ph'; $('#in-pass').value='jas12345'; };
+$('#up-terms').onchange = e => $('#up-submit').disabled = !e.target.checked;
+
+function showErr(id,msg){ const el=$(id); el.textContent=msg; el.hidden=false; }
+
+$('#form-in').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const email = $('#in-email').value.trim().toLowerCase(), pass = $('#in-pass').value;
+  if(!email || !pass) return showErr('#in-err','Enter your email and password.');
+  const u = users()[email];
+  if(!u || u.pass !== await hash(pass)) return showErr('#in-err','Email or password is incorrect. Try again or create an account.');
+  login(u, $('#in-remember').checked);
+});
+
+$('#form-up').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const name=$('#up-name').value.trim(), email=$('#up-email').value.trim().toLowerCase(), p1=$('#up-pass').value, p2=$('#up-pass2').value;
+  if(!name) return showErr('#up-err','Enter your full name.');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showErr('#up-err','Enter a valid email address.');
+  if(users()[email]) return showErr('#up-err','May account na gamit ang email na ito. Sign in instead.');
+  if(p1.length<8) return showErr('#up-err','Password must be at least 8 characters.');
+  if(p1!==p2) return showErr('#up-err','Passwords do not match.');
+  if(!$('#up-terms').checked) return showErr('#up-err','Please agree to the Terms of Service and Privacy Policy.');
+  const u = { name, email, focus:$('#up-focus').value, pass: await hash(p1), agreedAt:new Date().toISOString() };
+  const all = users(); all[email]=u; store.set('jas_users', all);
+  login(u, true); toast('Account created. Welcome to JAS!');
+});
+
+function login(u, remember){
+  me = u;
+  if(remember) store.set('jas_session', u.email); else store.del('jas_session');
+  showScreen('app');
+  const first = u.name.split(' ')[0];
+  $('#u-name').textContent = first; $('#u-initial').textContent = first[0].toUpperCase();
+  showView('home');
+}
+$('#logout').onclick = ()=>{
+  store.del('jas_session'); me=null;
+  $('#form-in').reset(); showLobby(); toast('Logged out.');
+};
+
+/* ---------------- Screens: lobby, auth, app ---------------- */
+function showScreen(name){
+  ['lobby','auth','app'].forEach(n => $('#'+n).hidden = n!==name);
+  document.body.classList.toggle('in-app', name==='app');
+  window.scrollTo(0,0);
+}
+const sessionUser = () => { const s=store.get('jas_session',null); return (s && users()[s]) || null; };
+function showAuth(tab){ showScreen('auth'); switchTab(tab||'in'); setTimeout(()=>$(tab==='up'?'#up-name':'#in-email').focus(),0); }
+function showLobby(){ showScreen('lobby'); renderLobby(); }
+function goToBoards(){ const u = me || sessionUser(); if(u) login(u, !!sessionUser()); else showAuth('in'); }
+document.addEventListener('click', e=>{
+  const t = e.target.closest('[data-scroll],[data-signin],[data-myboards],[data-lobby]'); if(!t) return;
+  if(t.dataset.scroll){ document.getElementById(t.dataset.scroll).scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth', block:'start'}); }
+  else if('signin' in t.dataset) showAuth('in');
+  else if('myboards' in t.dataset) goToBoards();
+  else if('lobby' in t.dataset) showLobby();
+});
+
+/* Feature marketplace. Status and pricing are shown exactly as known: nothing here is for sale yet. */
+const ILLUSTRATIONS = {
+  travel:`<svg viewBox="0 0 320 180" aria-hidden="true"><path d="M40 140 C 90 60, 150 150, 200 80 S 280 50, 290 40" fill="none" stroke="#1d4ed8" stroke-width="3" stroke-dasharray="7 6"/>
+    <g fill="#1f7a45"><circle cx="40" cy="140" r="9"/><circle cx="200" cy="80" r="9"/><circle cx="290" cy="40" r="9"/></g>
+    <g fill="#fff" font-family="Figtree,sans-serif" font-size="10" font-weight="700" text-anchor="middle"><text x="40" y="144">1</text><text x="200" y="84">2</text><text x="290" y="44">3</text></g>
+    <rect x="70" y="20" width="84" height="44" rx="4" fill="#cfe3ff"/><rect x="80" y="32" width="56" height="6" rx="3" fill="#7d93b8"/><rect x="80" y="44" width="40" height="6" rx="3" fill="#7d93b8"/>
+    <rect x="214" y="112" width="84" height="44" rx="4" fill="#ffd9b0"/><rect x="224" y="124" width="56" height="6" rx="3" fill="#b38a5f"/><rect x="224" y="136" width="36" height="6" rx="3" fill="#b38a5f"/></svg>`,
+  business:`<svg viewBox="0 0 320 180" aria-hidden="true"><rect x="24" y="24" width="130" height="132" rx="6" fill="#f4f8f5" stroke="#2b3a30" stroke-width="1.5"/>
+    <g fill="#1f7a45"><rect x="44" y="110" width="18" height="30" rx="2"/><rect x="70" y="92" width="18" height="48" rx="2"/><rect x="96" y="72" width="18" height="68" rx="2"/><rect x="122" y="50" width="18" height="90" rx="2" fill="#7fd6a0"/></g>
+    <rect x="40" y="36" width="70" height="7" rx="3" fill="#2b3a30"/>
+    <rect x="172" y="24" width="124" height="60" rx="4" fill="#fff3a3"/><rect x="184" y="38" width="90" height="6" rx="3" fill="#a89a4a"/><rect x="184" y="50" width="64" height="6" rx="3" fill="#a89a4a"/>
+    <rect x="172" y="96" width="124" height="60" rx="4" fill="#ffd6e3"/><rect x="184" y="110" width="84" height="6" rx="3" fill="#b07a8b"/><rect x="184" y="122" width="54" height="6" rx="3" fill="#b07a8b"/></svg>`
+};
+const FEATURES = [
+  { id:'notes', name:'Notes Workspace', lead:true, status:'ok', statusText:'Available in demo', price:'Pricing coming soon',
+    desc:'A big white canvas for sticky notes, text, shapes, images, and arrows. Lay out any plan and rearrange it as it changes.',
+    preview:()=>thumbSVG(...(d=>[d.items,d.links])(TEMPLATES.find(t=>t.id==='event').build())),
+    details:`<p>Notes Workspace is the main JAS feature and works today in this demo.</p>
+      <ul><li>Sticky notes, text, shapes, and images on a large white canvas</li><li>Arrows and connectors that follow items when you move them</li><li>Drag, resize, edit, duplicate, and delete</li><li>Zoom, pan, and fit to screen</li><li>Undo and redo, colors, and labels to group notes</li><li>Board title, auto-save, and optional templates</li></ul>
+      <p><b>Pricing:</b> not decided yet. There's no payment or checkout in this demo.</p>
+      <p><b>Saving:</b> boards stay in the browser you use. They don't sync to other devices.</p>` },
+  { id:'travel', name:'Travel Planner', status:'soon', statusText:'Coming soon', price:'Pricing coming soon',
+    desc:'A dedicated planner for itineraries, bookings, and trip budgets.',
+    preview:()=>ILLUSTRATIONS.travel,
+    details:`<p>Travel Planner is a feature idea and isn't built yet.</p>
+      <p>Planned focus: day-by-day itineraries, booking details, and trip budgets in one place.</p>
+      <p>For now, you can plan a trip with the <b>Travel itinerary</b> template inside Notes Workspace.</p>` },
+  { id:'business', name:'Business Planner', status:'soon', statusText:'Coming soon', price:'Pricing coming soon',
+    desc:'A planner for business ideas, launch steps, costs, and goals.',
+    preview:()=>ILLUSTRATIONS.business,
+    details:`<p>Business Planner is a feature idea and isn't built yet.</p>
+      <p>Planned focus: shaping a business idea, listing launch steps, and tracking costs and goals.</p>
+      <p>For now, you can use the <b>Business plan</b> template inside Notes Workspace.</p>` }
+];
+function featureAction(f){
+  return f.status==='ok'
+    ? `<button class="btn" data-try="${f.id}">${sessionUser()?'Open workspace':'Try it now'}</button>`
+    : `<button class="btn" disabled aria-disabled="true">Coming soon</button>`;
+}
+function featureCard(f){
+  return `<article class="fcard${f.lead?' lead':''}">
+    <div class="thumb">${f.preview()}</div>
+    <div class="fbody">
+      <div class="pills"><span class="pill ${f.status}">${esc(f.statusText)}</span><span class="pill price">${esc(f.price)}</span></div>
+      <h3>${esc(f.name)}</h3>
+      <p>${esc(f.desc)}</p>
+      <div class="factions"><button class="btn ghost" data-learn="${f.id}">Learn more</button>${featureAction(f)}</div>
+    </div>
+  </article>`;
+}
+function openFeature(id){
+  const f = FEATURES.find(x=>x.id===id);
+  $('#df-title').textContent = f.name;
+  $('#df-body').innerHTML = `<div class="pills" style="margin-bottom:.6rem"><span class="pill ${f.status}">${esc(f.statusText)}</span><span class="pill price">${esc(f.price)}</span></div>` + f.details;
+  $('#df-foot').innerHTML = `<button class="btn ghost" data-close>Close</button>` + featureAction(f);
+  $('#dlg-feature').showModal();
+}
+document.addEventListener('click', e=>{
+  const l = e.target.closest('[data-learn]'); if(l) return openFeature(l.dataset.learn);
+  const t = e.target.closest('[data-try]'); if(t){ $('#dlg-feature').open && $('#dlg-feature').close(); goToBoards(); }
+});
+const CAPS = [
+  ['Sticky notes and text','Type ideas on colored notes or add headings anywhere.'],
+  ['Arrows and connectors','Link items. Lines follow when you move things.'],
+  ['Shapes and images','Rectangles, ellipses, diamonds, and your own photos.'],
+  ['Drag, resize, edit','Move anything, change its size, double-click to edit.'],
+  ['Duplicate and delete','Copy a group of notes or clear what you don’t need.'],
+  ['Zoom, pan, fit to screen','Explore a big board, then fit it all back in view.'],
+  ['Undo and redo','Step back and forward through your changes.'],
+  ['Colors and labels','Color-code notes and group them with labels.'],
+  ['Board title and auto-save','Name your board. Changes save in this browser.'],
+  ['Optional templates','Start blank, or from travel, business, or event plans.']
+];
+function renderLobby(){
+  const u = sessionUser();
+  $('#l-signin').hidden = !!u; $('#l-myboards').hidden = !u;
+  $('#h-signin').textContent = u ? 'Go to my boards' : 'Sign in';
+  $('#h-signin').toggleAttribute('data-signin', !u); $('#h-signin').toggleAttribute('data-myboards', !!u);
+  if(!$('#hb-svg').innerHTML){ const d=TEMPLATES.find(t=>t.id==='event').build(); $('#hb-svg').innerHTML=thumbSVG(d.items,d.links); }
+  $('#feature-grid').innerHTML = FEATURES.map(featureCard).join('');
+  if(!$('#caps').innerHTML) $('#caps').innerHTML = CAPS.map(([b,t])=>`<div class="cap"><b>${esc(b)}</b><span>${esc(t)}</span></div>`).join('');
+  // "Continue where you left off": only for a signed-in user with saved boards in this browser
+  const rw=$('#resume-wrap'), boards = u ? store.get('jas_boards:'+u.email, []) : [];
+  if(!u || !boards.length){ rw.hidden=true; return; }
+  const lastId = store.get('jas_cookie',{}).pref ? store.get('jas_last_board:'+u.email, null) : null;
+  const b = boards.find(x=>x.id===lastId) || [...boards].sort((a,c)=>c.updated-a.updated)[0];
+  $('#resume').innerHTML = `<div><span>Continue where you left off, ${esc(u.name.split(' ')[0])}</span><br><b>${esc(b.title||'Untitled board')}</b> <span>· edited ${ago(b.updated)}</span></div><button class="btn" id="resume-btn">Open board</button>`;
+  $('#resume-btn').onclick = ()=>{ login(u, true); openBoard(b.id); };
+  rw.hidden=false;
+}
+
+/* ---------------- Home & templates views ---------------- */
+function showView(v){
+  ['home','templates'].forEach(n => $('#v-'+n).hidden = n!==v);
+  $$('nav.main button').forEach(b => b.dataset.view===v ? b.setAttribute('aria-current','page') : b.removeAttribute('aria-current'));
+  if(v==='home') renderHome();
+  if(v==='templates') renderTemplates();
+  window.scrollTo(0,0);
+}
+document.addEventListener('click', e=>{ const b=e.target.closest('[data-view]'); if(b) showView(b.dataset.view); });
+
+function thumbSVG(items, links){
+  if(!items.length) return '';
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  items.forEach(i=>{ x0=Math.min(x0,i.x); y0=Math.min(y0,i.y); x1=Math.max(x1,i.x+i.w); y1=Math.max(y1,i.y+i.h); });
+  const pad=Math.max(x1-x0,y1-y0)*.08+20, byId=Object.fromEntries(items.map(i=>[i.id,i]));
+  const ls = links.map(l=>{ const a=byId[l.from], b=byId[l.to]; if(!a||!b) return '';
+    return `<line x1="${a.x+a.w/2}" y1="${a.y+a.h/2}" x2="${b.x+b.w/2}" y2="${b.y+b.h/2}" stroke="#8aa595" stroke-width="${pad/8}"/>`; }).join('');
+  const rs = [...items].sort((a,b)=>a.z-b.z).map(i=>{
+    if(i.type==='text') return `<rect x="${i.x}" y="${i.y+i.h*.25}" width="${i.w*.8}" height="${i.h*.5}" rx="4" fill="#3b4d42"/>`;
+    const fill = i.type==='image' ? '#b9c7be' : i.color;
+    if(i.type==='shape' && i.shape==='ellipse') return `<ellipse cx="${i.x+i.w/2}" cy="${i.y+i.h/2}" rx="${i.w/2}" ry="${i.h/2}" fill="${fill}" stroke="#2b3a30" stroke-width="3"/>`;
+    if(i.type==='shape' && i.shape==='diamond') return `<path d="M${i.x+i.w/2} ${i.y}L${i.x+i.w} ${i.y+i.h/2}L${i.x+i.w/2} ${i.y+i.h}L${i.x} ${i.y+i.h/2}Z" fill="${fill}" stroke="#2b3a30" stroke-width="3"/>`;
+    return `<rect x="${i.x}" y="${i.y}" width="${i.w}" height="${i.h}" rx="4" fill="${fill}" ${i.type==='shape'?'stroke="#2b3a30" stroke-width="3"':''}/>`;
+  }).join('');
+  return `<svg viewBox="${x0-pad} ${y0-pad} ${x1-x0+pad*2} ${y1-y0+pad*2}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${ls}${rs}</svg>`;
+}
+function templateCard(t, suggested){
+  const d = t.id==='blank' ? null : t.build();
+  return `<button class="tcard" data-tpl="${t.id}">
+    <div class="thumb">${d ? thumbSVG(d.items,d.links) : '<span class="plus">+</span>'}</div>
+    <div class="cbody">${suggested?'<span class="tag">Suggested for you</span>':`<span class="tag">${esc(t.tag)}</span>`}<strong>${esc(t.name)}</strong><span>${esc(t.desc)}</span></div>
+  </button>`;
+}
+function bindTemplateCards(root){ root.querySelectorAll('[data-tpl]').forEach(b=>b.onclick=()=>createAndOpen(b.dataset.tpl)); }
+function renderTemplates(){ const el=$('#all-templates'); el.innerHTML = TEMPLATES.map(t=>templateCard(t, t.id===me.focus && t.id!=='blank')).join(''); bindTemplateCards(el); }
+
+let pendingDelete = null;
+function renderHome(){
+  const h = new Date().getHours();
+  const hi = h<12 ? 'Magandang umaga' : h<18 ? 'Magandang hapon' : 'Magandang gabi';
+  $('#greet').textContent = `${hi}, ${me.name.split(' ')[0]}!`;
+  const ordered = [...TEMPLATES].sort((a,b)=> (b.id===me.focus) - (a.id===me.focus));
+  const q = $('#quick-templates'); q.innerHTML = ordered.map(t=>templateCard(t, t.id===me.focus && t.id!=='blank')).join(''); bindTemplateCards(q);
+  const boards = loadBoards().sort((a,b)=>b.updated-a.updated);
+  $('#board-count').textContent = boards.length ? `${boards.length} board${boards.length>1?'s':''}` : '';
+  const last = store.get('jas_cookie',{}).pref ? store.get('jas_last_board:'+me.email, null) : null;
+  $('#boards').innerHTML = boards.length ? boards.map(b=>`
+    <div class="bcard">
+      <button class="open" data-open-board="${b.id}">
+        <div class="thumb">${thumbSVG(b.items,b.links) || '<span class="empty">Blank canvas</span>'}</div>
+        <div class="cbody">${b.id===last?'<span class="tag">Last opened</span>':''}<strong>${esc(b.title||'Untitled board')}</strong><span>Edited ${ago(b.updated)} · ${b.items.length} item${b.items.length===1?'':'s'}</span></div>
+      </button>
+      <div class="bacts">${pendingDelete===b.id
+        ? `<span class="empty" style="flex-basis:100%">Delete this board for good?</span><button class="btn danger sm" data-del-yes="${b.id}">Delete</button><button class="btn ghost sm" data-del-no>Keep it</button>`
+        : `<button class="btn ghost sm" data-dup-board="${b.id}">Duplicate</button><button class="btn ghost sm" data-del-board="${b.id}">Delete</button>`}</div>
+    </div>`).join('') : `<p class="empty">No boards yet. Start with a blank board or pick a template above.</p>`;
+  $$('[data-open-board]').forEach(b=>b.onclick=()=>openBoard(b.dataset.openBoard));
+  $$('[data-dup-board]').forEach(b=>b.onclick=()=>{
+    const all=loadBoards(), src=all.find(x=>x.id===b.dataset.dupBoard); if(!src) return;
+    const copy=JSON.parse(JSON.stringify(src)); copy.id=uid(); copy.title=(src.title||'Untitled board')+' (copy)'; copy.updated=copy.created=Date.now();
+    all.push(copy); if(!store.set(boardsKey(), all) && storageOK) toast('Not enough browser storage to copy this board'); else toast('Board duplicated'); renderHome();
+  });
+  $$('[data-del-board]').forEach(b=>b.onclick=()=>{ pendingDelete=b.dataset.delBoard; renderHome(); });
+  $$('[data-del-no]').forEach(b=>b.onclick=()=>{ pendingDelete=null; renderHome(); });
+  $$('[data-del-yes]').forEach(b=>b.onclick=()=>{ store.set(boardsKey(), loadBoards().filter(x=>x.id!==b.dataset.delYes)); pendingDelete=null; toast('Board deleted'); renderHome(); });
+}
+$('#new-blank').onclick = ()=>createAndOpen('blank');
+function createAndOpen(tplId){
+  const b = newBoardFrom(tplId);
+  const all = loadBoards(); all.push(b);
+  if(!store.set(boardsKey(), all) && storageOK) return toast('Browser storage is full. Delete a board and try again.');
+  openBoard(b.id);
+}
+
+/* ================= BOARD WORKSPACE ================= */
+const vp=$('#vp'), world=$('#world'), itemsLayer=$('#items'), linkG=$('#link-g'), tmpLink=$('#tmp-link');
+const W = { board:null, sel:new Set(), selLink:null, tool:'select', shapeKind:'rect', editing:null, editBefore:null, justCreated:null,
+            undo:[], redo:[], pendingFrom:null, focusLabel:null, space:false };
+const els = new Map();
+const find = id => W.board.items.find(i=>i.id===id);
+const topZ = () => W.board.items.reduce((m,i)=>Math.max(m,i.z),0);
+const snap = () => JSON.stringify({items:W.board.items, links:W.board.links, labels:W.board.labels});
+
+// arrowhead markers, one per line colour (last one is the selection colour)
+$('#markers').innerHTML = [...LINE_COLORS,'#1f9d5a'].map((c,i)=>`<marker id="ah${i}" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="5" markerHeight="5" markerUnits="strokeWidth" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`).join('');
+
+function openBoard(id){
+  const b = loadBoards().find(x=>x.id===id); if(!b) return toast('That board could not be found.');
+  b.assets = b.assets || {}; b.labels = b.labels || [];
+  W.board=b; W.sel=new Set(); W.selLink=null; W.undo=[]; W.redo=[]; W.editing=null; W.pendingFrom=null; W.focusLabel=null;
+  els.forEach(el=>el.remove()); els.clear();
+  $('#app').hidden=true; $('#ws').hidden=false; document.body.classList.add('in-board');
+  $('#b-title').value = b.title || 'Untitled board';
+  $('#labels-panel').hidden = true; $('#b-labels').setAttribute('aria-pressed','false');
+  if(store.get('jas_cookie',{}).pref) store.set('jas_last_board:'+me.email, b.id);
+  if(!b.view) fitView(); else applyView();
+  setTool('select'); setStatus('saved'); updUndo();
+  vp.focus({preventScroll:true});
+}
+function closeBoard(){
+  endEdit(); flushSave();
+  $('#ws').hidden=true; $('#app').hidden=false; document.body.classList.remove('in-board');
+  W.board=null; showView('home');
+}
+$('#b-back').onclick = closeBoard;
+$('#b-title').addEventListener('input', e=>{ W.board.title = e.target.value; saveSoon(); });
+$('#b-title').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.target.blur(); vp.focus(); } });
+$('#b-title').addEventListener('blur', e=>{ if(W.board && !e.target.value.trim()){ e.target.value='Untitled board'; W.board.title='Untitled board'; saveSoon(); } });
+
+/* ---------- Saving ---------- */
+let saveT=null;
+function setStatus(s){
+  const el=$('#b-status'); el.classList.toggle('bad', s==='error');
+  el.textContent = s==='saving' ? 'Saving…' : s==='error' ? 'Not saved: storage full' : storageOK ? 'Saved' : 'Saved for this visit only';
+  el.title = s==='error' ? 'Browser storage is full. Remove large images or delete old boards to free space.' : storageOK ? 'Auto-saved in this browser' : 'This browser blocks storage. Changes will be lost when you close the page.';
+}
+function saveSoon(){ setStatus('saving'); clearTimeout(saveT); saveT=setTimeout(flushSave, 450); }
+function flushSave(){
+  clearTimeout(saveT); saveT=null;
+  const b=W.board; if(!b) return;
+  // Only images still on the board are written to storage; undo history keeps the rest in memory for this visit
+  const used = new Set(b.items.filter(i=>i.type==='image').map(i=>i.src));
+  b.updated = Date.now();
+  const all = loadBoards(); const i = all.findIndex(x=>x.id===b.id);
+  const rec = {...b, assets: Object.fromEntries(Object.entries(b.assets).filter(([k])=>used.has(k)))};
+  if(i<0) all.push(rec); else all[i]=rec;
+  const ok = store.set(boardsKey(), all);
+  setStatus(ok || !storageOK ? 'saved' : 'error');
+}
+addEventListener('pagehide', ()=>{ if(saveT) flushSave(); });
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && saveT) flushSave(); });
+
+/* ---------- History ---------- */
+function updUndo(){ $('#b-undo').disabled=!W.undo.length; $('#b-redo').disabled=!W.redo.length; }
+function pushUndo(before){ W.undo.push(before); if(W.undo.length>100) W.undo.shift(); W.redo=[]; updUndo(); }
+function mutate(fn){ const before=snap(); fn(); if(snap()!==before){ pushUndo(before); saveSoon(); } render(); }
+function restore(s){
+  Object.assign(W.board, JSON.parse(s));
+  W.sel = new Set([...W.sel].filter(id=>find(id)));
+  if(W.selLink && !W.board.links.find(l=>l.id===W.selLink)) W.selLink=null;
+  render(); saveSoon(); updUndo();
+}
+function undo(){ endEdit(); if(!W.undo.length) return; W.redo.push(snap()); restore(W.undo.pop()); }
+function redo(){ endEdit(); if(!W.redo.length) return; W.undo.push(snap()); restore(W.redo.pop()); }
+$('#b-undo').onclick=undo; $('#b-redo').onclick=redo;
+
+/* ---------- View: pan & zoom ---------- */
+const vpRect = () => vp.getBoundingClientRect();
+function toWorld(cx,cy){ const r=vpRect(), v=W.board.view; return {x:(cx-r.left-v.x)/v.z, y:(cy-r.top-v.y)/v.z}; }
+function applyView(){
+  const v=W.board.view;
+  world.style.transform=`translate(${v.x}px,${v.y}px) scale(${v.z})`;
+  world.style.setProperty('--z', v.z);
+  vp.style.backgroundSize=`${24*v.z}px ${24*v.z}px`;
+  vp.style.backgroundPosition=`${v.x}px ${v.y}px`;
+  $('#z-pct').textContent=Math.round(v.z*100)+'%';
+  paintChips(); placeCtx();
+}
+let viewSaveT;
+function viewChanged(){ applyView(); clearTimeout(viewSaveT); viewSaveT=setTimeout(()=>{ if(W.board) saveSoon(); }, 800); }
+function zoomAt(factor, sx, sy){
+  const v=W.board.view, r=vpRect();
+  if(sx==null){ sx=r.width/2; sy=r.height/2; }
+  const nz=clamp(v.z*factor, .1, 4), wx=(sx-v.x)/v.z, wy=(sy-v.y)/v.z;
+  v.x=sx-wx*nz; v.y=sy-wy*nz; v.z=nz; viewChanged();
+}
+function fitView(){
+  const b=W.board, r=vpRect();
+  if(!b.items.length){ b.view={x:r.width/2-100, y:r.height/2-100, z:1}; return viewChanged(); }
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  b.items.forEach(i=>{ x0=Math.min(x0,i.x); y0=Math.min(y0,i.y); x1=Math.max(x1,i.x+i.w); y1=Math.max(y1,i.y+i.h); });
+  const padX = r.width<620 ? 24 : 90, padTop = r.width<620 ? 70 : 80, padBot = r.width<620 ? 140 : 80;
+  const z=clamp(Math.min((r.width-padX*2)/(x1-x0), (r.height-padTop-padBot)/(y1-y0)), .1, 1.4);
+  b.view={ z, x:(r.width-(x1-x0)*z)/2 - x0*z, y:padTop+((r.height-padTop-padBot)-(y1-y0)*z)/2 - y0*z };
+  viewChanged();
+}
+$('#z-in').onclick=()=>zoomAt(1.2); $('#z-out').onclick=()=>zoomAt(1/1.2);
+$('#z-pct').onclick=()=>zoomAt(1/W.board.view.z); $('#z-fit').onclick=fitView;
+vp.addEventListener('wheel', e=>{
+  if(!W.board) return; e.preventDefault();
+  const r=vpRect();
+  const unit = e.deltaMode===1 ? 16 : e.deltaMode===2 ? r.height : 1;
+  const dx = e.deltaX*unit, dy = e.deltaY*unit;
+  // Mouse wheel and pinch zoom toward the pointer; a trackpad's sideways two-finger scroll and Shift+wheel pan
+  if(e.shiftKey || (!e.ctrlKey && !e.metaKey && Math.abs(dx) > Math.abs(dy))){ W.board.view.x -= e.shiftKey && !dx ? dy : dx; W.board.view.y -= e.shiftKey ? 0 : dy; viewChanged(); }
+  else zoomAt(Math.exp(-clamp(dy, -120, 120) * ((e.ctrlKey||e.metaKey) ? .01 : .0025)), e.clientX-r.left, e.clientY-r.top);
+},{passive:false});
+addEventListener('resize', ()=>{ if(W.board) applyView(); });
+
+/* ---------- Rendering ---------- */
+function shapeSVG(kind){
+  const a = `vector-effect="non-scaling-stroke"`;
+  if(kind==='ellipse') return `<svg class="sh" viewBox="0 0 100 100" preserveAspectRatio="none"><ellipse cx="50" cy="50" rx="49.2" ry="49.2" ${a}/></svg>`;
+  if(kind==='diamond') return `<svg class="sh" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M50 .8L99.2 50L50 99.2L.8 50Z" ${a}/></svg>`;
+  return `<svg class="sh" viewBox="0 0 100 100" preserveAspectRatio="none"><rect x=".5" y=".5" width="99" height="99" rx="3" ${a}/></svg>`;
+}
+function paintChip(chip){ chip.style.transform = `translateY(-100%) scale(${1/Math.max(W.board.view?.z||1,.75)})`; }
+function paintChips(){ itemsLayer.querySelectorAll('.chip:not([hidden])').forEach(paintChip); }
+function paintItem(el, it){
+  const sig = it.type + '|' + (it.type==='shape'?it.shape:'') + '|' + (it.type==='image'?it.src:'');
+  if(el._sig!==sig){
+    el._sig=sig;
+    const handles = '<span class="chip" hidden></span><i class="rh" title="Resize"></i><i class="ch" title="Drag onto another item to connect"></i>';
+    if(it.type==='image'){ el.innerHTML = `<img alt="" draggable="false">${handles}`; el.querySelector('img').src = W.board.assets[it.src] || ''; }
+    else el.innerHTML = (it.type==='shape'?shapeSVG(it.shape):'') + `<div class="content"></div>${handles}`;
+  }
+  const solo = W.sel.size===1 && W.sel.has(it.id) && W.editing!==it.id && W.tool==='select';
+  const dim = W.focusLabel && it.label!==W.focusLabel;
+  el.className = `item ${it.type}${it.type==='shape'?' '+it.shape:''}${it.top?' top':''}${W.sel.has(it.id)?' selected':''}${solo?' solo':''}${W.editing===it.id?' editing':''}${W.pendingFrom===it.id?' pending':''}${dim?' dim':''}`;
+  el.style.cssText = `left:${it.x}px;top:${it.y}px;width:${it.w}px;height:${it.h}px;z-index:${it.z}`+(it.type==='sticky'?`;background:${it.color}`:'');
+  if(it.type==='shape') el.querySelector('.sh').firstElementChild.setAttribute('fill', it.color);
+  const c = el.querySelector('.content');
+  if(c){
+    c.style.fontSize = it.fs+'px';
+    c.style.color = it.type==='text' ? it.color : '';
+    if(W.editing!==it.id && c.textContent!==it.text) c.textContent = it.text;
+  }
+  const chip = el.querySelector('.chip'), lab = it.label && W.board.labels.find(l=>l.id===it.label);
+  chip.hidden = !lab;
+  if(lab){ chip.textContent = lab.name; chip.style.background = lab.color; paintChip(chip); }
+}
+function renderItems(){
+  const seen=new Set();
+  for(const it of W.board.items){
+    seen.add(it.id);
+    let el=els.get(it.id);
+    if(!el){ el=document.createElement('div'); el.dataset.id=it.id; itemsLayer.append(el); els.set(it.id,el); }
+    paintItem(el,it);
+  }
+  for(const [id,el] of els) if(!seen.has(id)){ el.remove(); els.delete(id); }
+}
+function edgePoint(it, tx, ty, gapPx=6){
+  const cx=it.x+it.w/2, cy=it.y+it.h/2, dx=tx-cx, dy=ty-cy, hw=it.w/2, hh=it.h/2;
+  if(!dx && !dy) return {x:cx,y:cy};
+  let t;
+  if(it.type==='shape' && it.shape==='ellipse') t = 1/Math.sqrt((dx/hw)**2+(dy/hh)**2);
+  else if(it.type==='shape' && it.shape==='diamond') t = 1/(Math.abs(dx)/hw+Math.abs(dy)/hh);
+  else t = Math.min(hw/Math.abs(dx||1e-9), hh/Math.abs(dy||1e-9));
+  const len=Math.hypot(dx,dy), g=gapPx/len;
+  return {x:cx+dx*(t+g), y:cy+dy*(t+g)};
+}
+function linkPath(a,b){
+  const p=edgePoint(a, b.x+b.w/2, b.y+b.h/2), q=edgePoint(b, a.x+a.w/2, a.y+a.h/2);
+  return `M${p.x.toFixed(1)} ${p.y.toFixed(1)}L${q.x.toFixed(1)} ${q.y.toFixed(1)}`;
+}
+function renderLinks(){
+  const dimOf = l => W.focusLabel && (find(l.from)?.label!==W.focusLabel || find(l.to)?.label!==W.focusLabel);
+  linkG.innerHTML = W.board.links.map(l=>{
+    const a=find(l.from), b=find(l.to); if(!a||!b) return '';
+    const d=linkPath(a,b), sel=W.selLink===l.id, ci=sel?LINE_COLORS.length:Math.max(0,LINE_COLORS.indexOf(l.color));
+    return `<g data-link="${l.id}" class="${sel?'sel':''}" opacity="${dimOf(l)?.22:1}"><path class="hit" d="${d}"/><path class="ln" d="${d}" stroke="${l.color}" ${l.arrow?`marker-end="url(#ah${ci})"`:''}/></g>`;
+  }).join('');
+}
+function render(){
+  if(!W.board) return;
+  renderItems(); renderLinks();
+  $('#empty-board').hidden = W.board.items.length>0 || W.tool!=='select';
+  renderCtx(); renderLabelsPanel();
+}
+
+/* ---------- Tools ---------- */
+const HINTS = {
+  hand:'Drag to move around the board',
+  sticky:'Click anywhere to add a sticky note',
+  text:'Click anywhere to add text',
+  shape:'Click anywhere to add a shape',
+  connector:'Click an item, then click another item to connect them'
+};
+function setTool(t){
+  W.tool=t; W.pendingFrom=null;
+  $$('[data-tool]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.tool===t));
+  vp.className = 't-'+t;
+  const h=$('#hint'); h.hidden=!HINTS[t]; h.textContent=HINTS[t]||'';
+  if(t!=='shape') $('#shape-menu').hidden=true;
+  if(t!=='select'){ W.sel.clear(); W.selLink=null; endEdit(); }
+  render();
+}
+$$('[data-tool]').forEach(b=>b.onclick=()=>{
+  setTool(b.dataset.tool);
+  if(b.dataset.tool==='shape'){
+    const m=$('#shape-menu'), r=b.getBoundingClientRect(), sr=$('#stage').getBoundingClientRect();
+    m.style.top=(r.top-sr.top)+'px'; m.hidden=false;
+  }
+});
+$$('[data-shape]').forEach(b=>b.onclick=()=>{ W.shapeKind=b.dataset.shape; $('#shape-menu').hidden=true; $('#hint').textContent='Click anywhere to add a '+({rect:'rectangle',ellipse:'ellipse',diamond:'diamond'})[W.shapeKind]; vp.focus({preventScroll:true}); });
+
+function addItem(type, p, extra={}){
+  const d=DEF[type]; let id;
+  mutate(()=>{
+    const w=extra.w||d.w, h=extra.h||d.h;
+    const it={ id:uid(), type, x:Math.round(p.x-w/2), y:Math.round(p.y-h/2), w, h, text:'', color:d.color, fs:d.fs, label:null, shape:W.shapeKind, z:topZ()+1, ...extra };
+    W.board.items.push(it); W.sel=new Set([it.id]); W.selLink=null; id=it.id;
+  });
+  if(type!=='image'){ W.justCreated=id; startEdit(id); }
+  return id;
+}
+function addLink(from, to){
+  if(!from || !to || from===to) return;
+  if(W.board.links.some(l=>(l.from===from&&l.to===to))) return toast('These items are already connected');
+  mutate(()=>{ const l={id:uid(),from,to,arrow:true,color:LINE_COLORS[0]}; W.board.links.push(l); W.sel.clear(); W.selLink=l.id; });
+}
+
+/* ---------- Editing text ---------- */
+function startEdit(id){
+  const it=find(id); if(!it || it.type==='image') return;
+  if(W.editing && W.editing!==id) endEdit();
+  W.editing=id; W.editBefore=snap(); W.sel=new Set([id]); W.selLink=null;
+  render();
+  const c=els.get(id).querySelector('.content');
+  try{ c.contentEditable='plaintext-only'; }catch(e){}
+  if(c.contentEditable!=='plaintext-only') c.contentEditable='true';
+  c.focus({preventScroll:true});
+  const r=document.createRange(); r.selectNodeContents(c); const s=getSelection(); s.removeAllRanges(); s.addRange(r);
+}
+function endEdit(){
+  const id=W.editing; if(!id) return;
+  const el=els.get(id), c=el && el.querySelector('.content'), it=find(id);
+  W.editing=null;
+  if(c){ if(it) it.text=c.innerText.replace(/\n$/,''); c.contentEditable='false'; c.blur(); }
+  if(it && it.type==='text' && !it.text.trim()){
+    W.board.items=W.board.items.filter(x=>x.id!==id); W.sel.delete(id);
+    if(W.justCreated===id){ W.undo.pop(); updUndo(); W.justCreated=null; render(); saveSoon(); return; }
+  }
+  if(snap()!==W.editBefore) pushUndo(W.editBefore);
+  W.justCreated=null; render(); saveSoon();
+}
+itemsLayer.addEventListener('input', e=>{ const c=e.target.closest('.content'); if(!c) return; const it=find(c.parentElement.dataset.id); if(it){ it.text=c.innerText; saveSoon(); } });
+itemsLayer.addEventListener('paste', e=>{ if(!e.target.closest('.content')) return; e.preventDefault(); document.execCommand('insertText', false, e.clipboardData.getData('text/plain')); });
+itemsLayer.addEventListener('focusout', e=>{ const c=e.target.closest('.content'); if(c && W.editing===c.parentElement.dataset.id) setTimeout(()=>{ if(W.editing && document.activeElement!==c) endEdit(); }, 0); });
+
+/* ---------- Pointer interactions ---------- */
+let drag=null, lastTap={t:0,x:0,y:0};
+const pointers=new Map();
+function selectionItems(){ return W.board.items.filter(i=>W.sel.has(i.id)); }
+
+vp.addEventListener('pointerdown', e=>{
+  if(!W.board) return;
+  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pointers.size===2){ // pinch zoom
+    if(drag && drag.before && drag.moved){ pushUndo(drag.before); saveSoon(); }
+    const [a,b]=[...pointers.values()], r=vpRect(), v=W.board.view;
+    drag={type:'pinch', d0:Math.hypot(a.x-b.x,a.y-b.y)||1, z0:v.z, wx:((a.x+b.x)/2-r.left-v.x)/v.z, wy:((a.y+b.y)/2-r.top-v.y)/v.z};
+    return;
+  }
+  const t=e.target;
+  if(W.editing){ if(t.closest('.item.editing .content')) return; endEdit(); }
+  e.preventDefault(); // keep focus where we put it (new items start in edit mode)
+  $('#shape-menu').hidden=true;
+  vp.focus({preventScroll:true});
+  const p=toWorld(e.clientX,e.clientY), itemEl=t.closest('.item'), id=itemEl&&itemEl.dataset.id, linkEl=t.closest('[data-link]');
+  drag={type:'none', sx:e.clientX, sy:e.clientY, moved:false, onItem:id, onEmpty:!id&&!linkEl};
+  try{ vp.setPointerCapture(e.pointerId); }catch(_){}
+
+  if(e.button===1 || W.tool==='hand' || W.space){ drag={...drag, type:'pan', vx:W.board.view.x, vy:W.board.view.y, noTap:true}; vp.classList.add('panning'); return; }
+  if(t.classList.contains('rh')){ const it=find(id); drag={...drag, type:'resize', it, ow:it.w, oh:it.h, p, before:snap()}; return; }
+  if(t.classList.contains('ch')){ drag={...drag, type:'link', from:id}; return; }
+  if(W.tool==='sticky'||W.tool==='text'||W.tool==='shape'){ const tool=W.tool; setTool('select'); addItem(tool,p); drag=null; return; }
+  if(W.tool==='connector'){
+    if(id){ if(!W.pendingFrom){ W.pendingFrom=id; $('#hint').textContent='Now click the item to connect to'; render(); } else { const f=W.pendingFrom; W.pendingFrom=null; addLink(f,id); $('#hint').textContent=HINTS.connector; } }
+    else { W.pendingFrom=null; $('#hint').textContent=HINTS.connector; render(); }
+    drag=null; return;
+  }
+  if(id){
+    if(e.shiftKey){ W.sel.has(id)?W.sel.delete(id):W.sel.add(id); }
+    else if(!W.sel.has(id)) W.sel=new Set([id]);
+    W.selLink=null;
+    drag={...drag, type:'move', p, orig:selectionItems().map(i=>({i,x:i.x,y:i.y})), before:snap()};
+    render(); return;
+  }
+  if(linkEl){ W.selLink=linkEl.dataset.link; W.sel.clear(); render(); drag=null; return; }
+  if(!e.shiftKey){ W.sel.clear(); W.selLink=null; render(); }
+  drag={...drag, type:'pan', vx:W.board.view.x, vy:W.board.view.y};
+});
+
+vp.addEventListener('pointermove', e=>{
+  if(!drag || !pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(drag.type==='pinch'){
+    if(pointers.size<2) return;
+    const [a,b]=[...pointers.values()], r=vpRect(), v=W.board.view;
+    const nz=clamp(drag.z0*Math.hypot(a.x-b.x,a.y-b.y)/drag.d0,.1,4);
+    v.z=nz; v.x=(a.x+b.x)/2-r.left-drag.wx*nz; v.y=(a.y+b.y)/2-r.top-drag.wy*nz; viewChanged(); return;
+  }
+  const dxs=e.clientX-drag.sx, dys=e.clientY-drag.sy;
+  if(!drag.moved && Math.hypot(dxs,dys)<4) return;
+  drag.moved=true;
+  const p=toWorld(e.clientX,e.clientY), z=W.board.view.z;
+  if(drag.type==='pan'){ W.board.view.x=drag.vx+dxs; W.board.view.y=drag.vy+dys; viewChanged(); }
+  else if(drag.type==='move'){ const dx=dxs/z, dy=dys/z; drag.orig.forEach(o=>{ o.i.x=Math.round(o.x+dx); o.i.y=Math.round(o.y+dy); }); renderItems(); renderLinks(); placeCtx(); }
+  else if(drag.type==='resize'){
+    const it=drag.it; let w=Math.max(40, drag.ow+(p.x-drag.p.x)), h=Math.max(30, drag.oh+(p.y-drag.p.y));
+    if(it.type==='image') h=w*drag.oh/drag.ow;
+    it.w=Math.round(w); it.h=Math.round(h); renderItems(); renderLinks(); placeCtx();
+  }
+  else if(drag.type==='link'){
+    const a=find(drag.from), q=edgePoint(a,p.x,p.y,0);
+    tmpLink.setAttribute('d',`M${q.x} ${q.y}L${p.x} ${p.y}`);
+  }
+});
+
+function endPointer(e){
+  const had=pointers.delete(e.pointerId);
+  if(!drag || !had) return;
+  if(drag.type==='pinch'){ if(pointers.size<2) drag=null; return; }
+  if(!W.space) vp.classList.remove('panning');
+  if((drag.type==='move'||drag.type==='resize') && drag.moved){ pushUndo(drag.before); saveSoon(); }
+  if(drag.type==='link'){
+    tmpLink.setAttribute('d','');
+    const target=document.elementFromPoint(e.clientX,e.clientY)?.closest('.item');
+    if(target && drag.moved) addLink(drag.from, target.dataset.id);
+  }
+  // double tap / double click: edit an item, or add a sticky on empty canvas
+  if(!drag.moved && !drag.noTap && e.type==='pointerup' && W.tool==='select' && (drag.type==='move'||drag.type==='pan')){
+    const now=performance.now();
+    if(now-lastTap.t<380 && Math.hypot(e.clientX-lastTap.x,e.clientY-lastTap.y)<24){
+      lastTap.t=0;
+      const target=drag; drag=null;
+      if(target.onItem) startEdit(target.onItem);
+      else if(target.onEmpty) addItem('sticky', toWorld(e.clientX,e.clientY));
+      return;
+    }
+    lastTap={t:now,x:e.clientX,y:e.clientY};
+  }
+  drag=null; render();
+}
+vp.addEventListener('pointerup', endPointer);
+vp.addEventListener('pointercancel', endPointer);
+
+/* ---------- Selection actions ---------- */
+function duplicateSel(){
+  const items=selectionItems(); if(!items.length) return;
+  mutate(()=>{
+    const map={}; let z=topZ();
+    const copies=items.map(i=>{ const c={...i,id:uid(),x:i.x+30,y:i.y+30,z:++z}; map[i.id]=c.id; return c; });
+    W.board.items.push(...copies);
+    W.board.links.filter(l=>map[l.from]&&map[l.to]).forEach(l=>W.board.links.push({...l,id:uid(),from:map[l.from],to:map[l.to]}));
+    W.sel=new Set(copies.map(c=>c.id));
+  });
+}
+function deleteSel(){
+  if(W.selLink){ mutate(()=>{ W.board.links=W.board.links.filter(l=>l.id!==W.selLink); W.selLink=null; }); return; }
+  if(!W.sel.size) return;
+  mutate(()=>{
+    W.board.items=W.board.items.filter(i=>!W.sel.has(i.id));
+    W.board.links=W.board.links.filter(l=>!W.sel.has(l.from)&&!W.sel.has(l.to));
+    W.sel.clear();
+  });
+}
+function reorder(front){
+  mutate(()=>{
+    const sorted=[...W.board.items].sort((a,b)=>a.z-b.z), sel=sorted.filter(i=>W.sel.has(i.id)), rest=sorted.filter(i=>!W.sel.has(i.id));
+    (front?[...rest,...sel]:[...sel,...rest]).forEach((i,n)=>i.z=n+1);
+  });
+}
+function setOnSel(fn){ mutate(()=>selectionItems().forEach(fn)); }
+
+/* ---------- Context toolbar ---------- */
+const ICON = {
+  dup:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 00-2-2H5a2 2 0 00-2 2v9a2 2 0 002 2h3"/></svg>',
+  del:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+  front:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2" fill="currentColor" fill-opacity=".25"/><path d="M15 5V3H3v12h2"/></svg>',
+  back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="12" height="12" rx="2" fill="currentColor" fill-opacity=".25"/><path d="M19 9h2v12H9v-2"/></svg>',
+  arrow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M14 7l5 5-5 5"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>'
+};
+function renderCtx(){
+  const ctx=$('#ctx'), items=selectionItems();
+  if(W.editing || W.tool!=='select' || (!items.length && !W.selLink)){ ctx.hidden=true; return; }
+  let h='';
+  if(W.selLink){
+    const l=W.board.links.find(x=>x.id===W.selLink);
+    h+=LINE_COLORS.map(c=>`<button class="sw" style="background:${c}" data-act="lcolor" data-v="${c}" aria-pressed="${l.color===c}" title="Line colour"></button>`).join('');
+    h+=`<span class="vsep"></span><button class="ibtn" data-act="arrow" aria-pressed="${l.arrow}" title="Arrowhead on or off">${ICON.arrow}</button>`;
+    h+=`<span class="vsep"></span><button class="ibtn" data-act="delete" title="Delete connector (Delete)">${ICON.del}</button>`;
+  } else {
+    const types=new Set(items.map(i=>i.type)), one=types.size===1?[...types][0]:null, first=items[0];
+    if(one==='sticky'||one==='shape') h+=FILLS.map(c=>`<button class="sw" style="background:${c}" data-act="color" data-v="${c}" aria-pressed="${first.color===c}" title="Colour"></button>`).join('')+'<span class="vsep"></span>';
+    if(one==='text') h+=INKS.map(c=>`<button class="sw" style="background:${c}" data-act="color" data-v="${c}" aria-pressed="${first.color===c}" title="Text colour"></button>`).join('')+'<span class="vsep"></span>';
+    if(one==='shape') h+=`<select data-act="shape" aria-label="Shape">${[['rect','Rectangle'],['ellipse','Ellipse'],['diamond','Diamond']].map(([v,n])=>`<option value="${v}" ${first.shape===v?'selected':''}>${n}</option>`).join('')}</select>`;
+    if(!types.has('image')) h+=`<select data-act="fs" aria-label="Text size">${SIZES.map(([n,v])=>`<option value="${v}" ${first.fs===v?'selected':''}>${n}</option>`).join('')}${SIZES.some(s=>s[1]===first.fs)?'':`<option selected value="${first.fs}">${first.fs}px</option>`}</select>`;
+    h+=`<select data-act="label" aria-label="Label"><option value="">No label</option>${W.board.labels.map(l=>`<option value="${l.id}" ${items.every(i=>i.label===l.id)?'selected':''}>${esc(l.name)}</option>`).join('')}<option value="__new">+ New label…</option></select>`;
+    h+='<span class="vsep"></span>';
+    if(items.length===1 && first.type!=='image') h+=`<button class="ibtn" data-act="edit" title="Edit text (Enter or double-click)">${ICON.edit}</button>`;
+    h+=`<button class="ibtn" data-act="dup" title="Duplicate (Ctrl+D)">${ICON.dup}</button><button class="ibtn" data-act="front" title="Bring to front">${ICON.front}</button><button class="ibtn" data-act="back" title="Send to back">${ICON.back}</button><button class="ibtn" data-act="delete" title="Delete (Delete)">${ICON.del}</button>`;
+  }
+  ctx.innerHTML=h; ctx.hidden=false; placeCtx();
+}
+function placeCtx(){
+  const ctx=$('#ctx'); if(ctx.hidden || !W.board) return;
+  const v=W.board.view, sr=$('#stage').getBoundingClientRect();
+  let x0,y0,x1,y1;
+  if(W.selLink){ const l=W.board.links.find(x=>x.id===W.selLink); if(!l) return; const a=find(l.from), b=find(l.to);
+    x0=Math.min(a.x+a.w/2,b.x+b.w/2); x1=Math.max(a.x+a.w/2,b.x+b.w/2); y0=Math.min(a.y+a.h/2,b.y+b.h/2); y1=Math.max(a.y+a.h/2,b.y+b.h/2); }
+  else { const it=selectionItems(); if(!it.length) return; x0=Math.min(...it.map(i=>i.x)); y0=Math.min(...it.map(i=>i.y)); x1=Math.max(...it.map(i=>i.x+i.w)); y1=Math.max(...it.map(i=>i.y+i.h)); }
+  const sx0=x0*v.z+v.x, sx1=x1*v.z+v.x, sy0=y0*v.z+v.y, sy1=y1*v.z+v.y;
+  const cw=ctx.offsetWidth, ch=ctx.offsetHeight;
+  const left=clamp((sx0+sx1)/2-cw/2, 12, Math.max(12, sr.width-cw-12));
+  let top=sy0-ch-28;
+  if(top<12) top=Math.min(sy1+18, sr.height-ch-12);
+  ctx.style.left=left+'px'; ctx.style.top=Math.max(12,top)+'px';
+}
+$('#ctx').addEventListener('click', e=>{
+  const b=e.target.closest('[data-act]'); if(!b || b.tagName==='SELECT') return;
+  const a=b.dataset.act;
+  if(a==='color') setOnSel(i=>i.color=b.dataset.v);
+  if(a==='lcolor') mutate(()=>{ W.board.links.find(l=>l.id===W.selLink).color=b.dataset.v; });
+  if(a==='arrow') mutate(()=>{ const l=W.board.links.find(l=>l.id===W.selLink); l.arrow=!l.arrow; });
+  if(a==='dup') duplicateSel();
+  if(a==='delete') deleteSel();
+  if(a==='front') reorder(true);
+  if(a==='back') reorder(false);
+  if(a==='edit') startEdit([...W.sel][0]);
+});
+$('#ctx').addEventListener('change', e=>{
+  const s=e.target.closest('select'); if(!s) return;
+  const a=s.dataset.act;
+  if(a==='shape') setOnSel(i=>i.shape=s.value);
+  if(a==='fs') setOnSel(i=>i.fs=+s.value);
+  if(a==='label'){
+    if(s.value==='__new'){ openLabels(true); renderCtx(); return; }
+    setOnSel(i=>i.label=s.value||null);
+  }
+  vp.focus({preventScroll:true});
+});
+
+/* ---------- Labels panel ---------- */
+let labelsAssignAfterAdd=false;
+function openLabels(assign){ labelsAssignAfterAdd=!!assign; $('#labels-panel').hidden=false; $('#b-labels').setAttribute('aria-pressed','true'); renderLabelsPanel(); setTimeout(()=>$('#lp-new')?.focus(),0); }
+function closeLabels(){ $('#labels-panel').hidden=true; $('#b-labels').setAttribute('aria-pressed','false'); }
+$('#b-labels').onclick=()=>{ if($('#labels-panel').hidden) openLabels(false); else closeLabels(); };
+function renderLabelsPanel(){
+  const p=$('#labels-panel'); if(p.hidden || !W.board) return;
+  if(p.contains(document.activeElement) && document.activeElement.tagName==='INPUT') return; // don't wipe while typing
+  const counts={}; W.board.items.forEach(i=>{ if(i.label) counts[i.label]=(counts[i.label]||0)+1; });
+  p.innerHTML=`<div class="sec-h" style="margin:0;align-items:center"><h3>Labels</h3><button class="x-btn" id="lp-close" aria-label="Close labels">×</button></div>
+    <p class="empty" style="margin:0;font-size:.84rem">Group notes with labels. Select items, then pick a label in the selection toolbar. Use Show to highlight one group.</p>
+    ${W.board.labels.map(l=>`<div class="lrow">
+      <button class="ldot" style="background:${l.color}" data-lcycle="${l.id}" title="Change colour" aria-label="Change colour of ${esc(l.name)}"></button>
+      <input type="text" value="${esc(l.name)}" data-lname="${l.id}" aria-label="Label name" maxlength="24">
+      <span class="cnt" title="Items with this label">${counts[l.id]||0}</span>
+      <button class="btn ghost sm" data-lfocus="${l.id}">${W.focusLabel===l.id?'Showing':'Show'}</button>
+      <button class="ibtn" data-ldel="${l.id}" title="Delete label">${ICON.del}</button></div>`).join('') || '<p class="empty" style="margin:0">No labels yet.</p>'}
+    <form id="lp-form" class="lrow" style="display:flex"><input id="lp-new" type="text" placeholder="New label name" maxlength="24"><button class="btn sm" type="submit">Add</button></form>`;
+  $('#lp-close').onclick=closeLabels;
+  p.querySelectorAll('[data-lcycle]').forEach(b=>b.onclick=()=>mutate(()=>{ const l=W.board.labels.find(x=>x.id===b.dataset.lcycle); l.color=LABEL_COLORS[(LABEL_COLORS.indexOf(l.color)+1)%LABEL_COLORS.length]; }));
+  p.querySelectorAll('[data-lname]').forEach(inp=>{
+    inp.onchange=()=>{ const v=inp.value.trim(); inp.blur(); mutate(()=>{ const l=W.board.labels.find(x=>x.id===inp.dataset.lname); if(v) l.name=v; }); };
+    inp.onkeydown=e=>{ if(e.key==='Enter') inp.blur(); };
+  });
+  p.querySelectorAll('[data-lfocus]').forEach(b=>b.onclick=()=>{ W.focusLabel = W.focusLabel===b.dataset.lfocus?null:b.dataset.lfocus; render(); });
+  p.querySelectorAll('[data-ldel]').forEach(b=>b.onclick=()=>mutate(()=>{ const id=b.dataset.ldel; W.board.labels=W.board.labels.filter(l=>l.id!==id); W.board.items.forEach(i=>{ if(i.label===id) i.label=null; }); if(W.focusLabel===id) W.focusLabel=null; }));
+  $('#lp-form').onsubmit=e=>{ e.preventDefault(); const v=$('#lp-new').value.trim(); if(!v) return; $('#lp-new').value=''; $('#lp-new').blur();
+    mutate(()=>{ const used=W.board.labels.map(l=>l.color); const l={id:uid(),name:v,color:LABEL_COLORS.find(c=>!used.includes(c))||LABEL_COLORS[W.board.labels.length%LABEL_COLORS.length]}; W.board.labels.push(l);
+      if(labelsAssignAfterAdd) selectionItems().forEach(i=>i.label=l.id); });
+    labelsAssignAfterAdd=false; toast('Label added'); };
+}
+
+/* ---------- Images ---------- */
+function readImage(file){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onerror=rej;
+    fr.onload=()=>{ const img=new Image(); img.onerror=()=>rej(new Error('bad image')); img.onload=()=>{
+      const s=Math.min(1,1200/Math.max(img.width,img.height)), w=Math.max(1,Math.round(img.width*s)), h=Math.max(1,Math.round(img.height*s));
+      const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d');
+      const keepAlpha=/png|gif|webp/.test(file.type);
+      if(!keepAlpha){ g.fillStyle='#fff'; g.fillRect(0,0,w,h); }
+      g.drawImage(img,0,0,w,h);
+      let url=c.toDataURL(keepAlpha?'image/png':'image/jpeg',.85);
+      if(keepAlpha && url.length>900000){ g.globalCompositeOperation='destination-over'; g.fillStyle='#fff'; g.fillRect(0,0,w,h); url=c.toDataURL('image/jpeg',.85); }
+      res({url,w,h}); }; img.src=fr.result; };
+    fr.readAsDataURL(file);
+  });
+}
+async function addImageFile(file, p){
+  if(!file || !file.type.startsWith('image/')) return toast('That file is not an image.');
+  try{
+    const {url,w,h}=await readImage(file);
+    const key='a'+uid(); W.board.assets[key]=url;
+    const s=Math.min(1,340/w), r=vpRect();
+    p = p || toWorld(r.left+r.width/2, r.top+r.height/2);
+    if(W.tool!=='select') setTool('select');
+    addItem('image', p, {src:key, w:Math.round(w*s), h:Math.round(h*s)});
+  }catch(e){ toast('Could not read that image.'); }
+}
+$('#img-btn').onclick=()=>$('#img-input').click();
+$('#img-input').onchange=e=>{ const f=e.target.files[0]; e.target.value=''; if(f) addImageFile(f); };
+vp.addEventListener('dragover', e=>{ e.preventDefault(); });
+vp.addEventListener('drop', e=>{ e.preventDefault(); const f=[...(e.dataTransfer?.files||[])].find(f=>f.type.startsWith('image/')); if(f) addImageFile(f, toWorld(e.clientX,e.clientY)); });
+document.addEventListener('paste', e=>{
+  if(!W.board || W.editing || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) return;
+  const f=[...(e.clipboardData?.files||[])].find(f=>f.type.startsWith('image/'));
+  if(f){ e.preventDefault(); addImageFile(f); }
+});
+
+/* ---------- Keyboard ---------- */
+document.addEventListener('keydown', e=>{
+  if(!W.board || $('#ws').hidden || document.querySelector('dialog[open]')) return;
+  const tag=document.activeElement?.tagName, typing=/INPUT|TEXTAREA|SELECT/.test(tag);
+  const mod=e.ctrlKey||e.metaKey, k=e.key.toLowerCase();
+  if(W.editing){ if(e.key==='Escape' || (e.key==='Enter' && mod)){ e.preventDefault(); endEdit(); vp.focus(); } return; }
+  if(typing) return;
+  if(mod && k==='z'){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
+  if(mod && k==='y'){ e.preventDefault(); redo(); return; }
+  if(mod && k==='d'){ e.preventDefault(); duplicateSel(); return; }
+  if(mod && k==='a'){ e.preventDefault(); setTool('select'); W.sel=new Set(W.board.items.map(i=>i.id)); render(); return; }
+  if(mod && (k==='='||k==='+')){ e.preventDefault(); zoomAt(1.2); return; }
+  if(mod && k==='-'){ e.preventDefault(); zoomAt(1/1.2); return; }
+  if(mod) return;
+  if(e.key==='Delete'||e.key==='Backspace'){ e.preventDefault(); deleteSel(); return; }
+  if(e.key==='Escape'){ W.sel.clear(); W.selLink=null; setTool('select'); closeLabels(); return; }
+  if(e.key==='!' || (e.shiftKey && e.code==='Digit1')){ fitView(); return; }
+  if(e.key===' '){ e.preventDefault(); if(!W.space){ W.space=true; vp.classList.add('panning'); } return; }
+  if(e.key.startsWith('Arrow') && W.sel.size){
+    e.preventDefault(); const d=e.shiftKey?10:1, dx=e.key==='ArrowLeft'?-d:e.key==='ArrowRight'?d:0, dy=e.key==='ArrowUp'?-d:e.key==='ArrowDown'?d:0;
+    setOnSel(i=>{ i.x+=dx; i.y+=dy; }); return;
+  }
+  if(e.key==='Enter' && W.sel.size===1){ e.preventDefault(); startEdit([...W.sel][0]); return; }
+  const map={v:'select',h:'hand',n:'sticky',t:'text',s:'shape',c:'connector'};
+  if(map[k]){ setTool(map[k]); return; }
+  if(k==='i'){ $('#img-input').click(); return; }
+  if(e.key==='+'||e.key==='='){ zoomAt(1.2); return; }
+  if(e.key==='-'){ zoomAt(1/1.2); return; }
+});
+document.addEventListener('keyup', e=>{ if(e.key===' '){ W.space=false; vp.classList.remove('panning'); } });
+
+/* ---------------- Dialogs & cookies ---------------- */
+document.addEventListener('click', e=>{
+  const o = e.target.closest('[data-open]'); if(o){ e.preventDefault(); const d=$('#'+o.dataset.open); if(o.dataset.open==='dlg-cookies'){ const c=store.get('jas_cookie',{}); $('#ck-pref').checked=!!c.pref; $('#ck-analytics').checked=!!c.analytics; } d.showModal(); }
+  const c = e.target.closest('[data-close]'); if(c) c.closest('dialog').close();
+});
+$$('dialog').forEach(d=>d.addEventListener('click',e=>{ if(e.target===d) d.close(); }));
+$('#agree-terms').onclick = ()=>{ $('#up-terms').checked=true; $('#up-submit').disabled=false; $('#dlg-terms').close(); };
+
+function setCookie(c){ store.set('jas_cookie',{...c, at:new Date().toISOString()}); $('#cookie').hidden=true; toast('Cookie preferences saved'); }
+$('#ck-accept').onclick = ()=>setCookie({pref:true,analytics:true});
+$('#ck-essential').onclick = ()=>setCookie({pref:false,analytics:false});
+$('#ck-save').onclick = ()=>{ setCookie({pref:$('#ck-pref').checked, analytics:$('#ck-analytics').checked}); $('#dlg-cookies').close(); };
+
+/* ---------------- Brand canvas: drifting leaf shapes ---------------- */
+(function(){
+  const cv=$('#leaves'), ctx=cv.getContext('2d'); let W2,H,leaves=[];
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function size(){ const r=cv.getBoundingClientRect(), d=devicePixelRatio||1; W2=r.width; H=r.height; cv.width=W2*d; cv.height=H*d; ctx.setTransform(d,0,0,d,0,0); }
+  function make(){ leaves=Array.from({length:18},()=>({x:Math.random()*W2,y:Math.random()*H,s:14+Math.random()*34,a:Math.random()*6.28,v:.15+Math.random()*.35,r:(Math.random()-.5)*.01,c:['#1f7a45','#2f8f57','#7fd6a0','#155c33'][Math.floor(Math.random()*4)]})); }
+  function leaf(l){ ctx.save(); ctx.translate(l.x,l.y); ctx.rotate(l.a); ctx.fillStyle=l.c; ctx.globalAlpha=.5; ctx.beginPath(); ctx.moveTo(0,-l.s); ctx.quadraticCurveTo(l.s*.7,0,0,l.s); ctx.quadraticCurveTo(-l.s*.7,0,0,-l.s); ctx.fill(); ctx.strokeStyle='#0d3b22'; ctx.globalAlpha=.4; ctx.beginPath(); ctx.moveTo(0,-l.s); ctx.lineTo(0,l.s); ctx.stroke(); ctx.restore(); }
+  function draw(){ ctx.clearRect(0,0,W2,H); leaves.forEach(l=>{ if(!still){ l.y+=l.v; l.x+=Math.sin(l.y/60)*.3; l.a+=l.r; if(l.y-l.s>H){ l.y=-l.s; l.x=Math.random()*W2; } } leaf(l); }); }
+  function tick(){ if($('#auth').hidden){ setTimeout(()=>requestAnimationFrame(tick),500); return; } draw(); if(!still) requestAnimationFrame(tick); }
+  size(); make(); tick(); addEventListener('resize',()=>{ size(); make(); draw(); });
+})();
+
+/* ---------------- Boot ---------------- */
+(async function(){
+  await seedDemo();
+  if(!store.get('jas_cookie',null)) $('#cookie').hidden = false;
+  showLobby();
+})();
+</script>
+</body>
+</html>
