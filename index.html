@@ -205,6 +205,19 @@ footer.foot nav{display:flex;gap:1rem;flex-wrap:wrap}
 #ws{position:fixed;inset:0;z-index:20;background:var(--bg);display:grid;grid-template-rows:auto 1fr}
 .wbar{background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding-top:calc(8px + env(safe-area-inset-top,0px));padding-bottom:8px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
 .wbar .logo{font-size:1.05rem}
+body.online [data-local],body:not(.online) [data-online]{display:none!important}
+.people{display:flex;align-items:center;padding-left:6px}
+.people .pa{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:.78rem;border:2px solid var(--surface);margin-left:-7px;flex:none}
+.people .more{background:var(--surface-2);color:var(--fg)}
+#sh-form{display:flex;gap:8px;margin:.7rem 0 .3rem}
+#sh-form input{flex:1;min-width:0}
+#sh-msg{font-size:.86rem;margin:.2rem 0 .6rem;color:var(--muted)}
+#sh-msg.bad{color:var(--bad,#b3261e)}
+.mlist{list-style:none;padding:0;margin:.4rem 0;display:grid;gap:6px}
+.mlist li{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:12px}
+.mlist .pa{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:.85rem;flex:none}
+.mlist .mi{flex:1;min-width:0}.mlist .mi b{display:block;font-size:.92rem}.mlist .mi span{font-size:.8rem;color:var(--muted);overflow-wrap:anywhere}
+.mlist .role{font-size:.78rem;color:var(--muted);white-space:nowrap}
 .wbar .logo .mark{width:28px;height:28px;font-size:.85rem;background:var(--green);color:var(--on-green)}
 .ibtn{border:0;background:transparent;color:var(--fg);height:36px;min-width:36px;padding:0 8px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-weight:600;font-size:.88rem}
 .ibtn:hover:not(:disabled){background:var(--surface-2)}
@@ -424,7 +437,7 @@ svg.word{display:block;height:.78em;width:1.81em;flex:none;color:currentColor;ov
         <div class="lsec-h">
           <span class="eyebrow">Notes Workspace</span>
           <h2>A big white canvas, ready when you are</h2>
-          <p>Everything below already works in the demo. Boards save automatically, but only in the browser you use.</p>
+          <p><span data-local>Everything below already works in the demo. Boards save automatically, but only in the browser you use.</span><span data-online>Everything below already works. Boards save online, and you can add other people to plan together on one board.</span></p>
         </div>
         <div class="caps" id="caps"></div>
       </div>
@@ -458,7 +471,7 @@ svg.word{display:block;height:.78em;width:1.81em;flex:none;color:currentColor;ov
         <li>Events, projects, and weekly plans</li>
       </ul>
     </div>
-    <small>Demo build · Boards are saved in this browser</small>
+    <small><span data-local>Demo build · Boards are saved in this browser</span><span data-online>Boards are saved online and can be shared</span></small>
   </div>
 
   <div class="formside">
@@ -546,7 +559,8 @@ svg.word{display:block;height:.78em;width:1.81em;flex:none;color:currentColor;ov
         <div class="sec-h"><h3>Your boards</h3><span id="board-count"></span></div>
         <div class="grid" id="boards"></div>
       </section>
-      <p class="notice"><b>Saved in this browser.</b> Boards auto-save on this device only. They don't sync to other devices yet, and clearing your browser data deletes them.</p>
+      <p class="notice" data-local><b>Saved in this browser.</b> Boards auto-save on this device only. They don't sync to other devices yet, and clearing your browser data deletes them.</p>
+      <p class="notice" data-online><b>Saved online.</b> Your boards follow your account on any device. Open a board and press <b>Share</b> to plan together with other people.</p>
     </div>
 
     <!-- TEMPLATES -->
@@ -578,6 +592,8 @@ svg.word{display:block;height:.78em;width:1.81em;flex:none;color:currentColor;ov
     <span class="grow"></span>
     <button class="ibtn" id="b-undo" title="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 010 11H11"/></svg></button>
     <button class="ibtn" id="b-redo" title="Redo (Ctrl+Shift+Z)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 000 11H13"/></svg></button>
+    <div class="people" id="b-people" aria-label="People on this board"></div>
+    <button class="ibtn" id="b-share" title="Share this board" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0113 0"/><path d="M19 8v6M16 11h6"/></svg><span class="lbl">Share</span></button>
     <button class="ibtn" id="b-labels" aria-pressed="false" title="Labels"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0L3 13V3h10l7.6 7.6a2 2 0 010 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span class="lbl">Labels</span></button>
     <button class="ibtn" data-open="dlg-help" title="Shortcuts and help"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.5 9.2a2.6 2.6 0 015 .8c0 1.8-2.5 2.2-2.5 3.8"/><circle cx="12" cy="17.2" r=".6" fill="currentColor"/></svg></button>
   </div>
@@ -646,9 +662,11 @@ svg.word{display:block;height:.78em;width:1.81em;flex:none;color:currentColor;ov
     <h4>2. How we use it</h4>
     <ul><li>To create and secure your account.</li><li>To save and show your boards.</li><li>To improve JAS and its templates (only if you allow analytics cookies).</li></ul>
     <h4>3. Where your data is stored</h4>
-    <p>In this demo version, all data, including images on your boards, stays in your own browser (local storage). Nothing is sent to a server, and boards do not sync between devices. Clearing your browser data deletes your account and boards.</p>
+    <p data-local>In this demo version, all data, including images on your boards, stays in your own browser (local storage). Nothing is sent to a server, and boards do not sync between devices. Clearing your browser data deletes your account and boards.</p>
+    <p data-online>Your account (name, email, and a securely hashed password) and your boards, including images, are stored with our database provider, Supabase, so you can sign in on any device and share boards. Your password is never stored in readable form.</p>
     <h4>4. Sharing</h4>
-    <p>We do not sell or share your personal information with third parties. Boards are private to the browser they were made in.</p>
+    <p data-local>We do not sell or share your personal information with third parties. Boards are private to the browser they were made in.</p>
+    <p data-online>We do not sell your personal information. A board is visible only to you and the people you add to it. People on the same board can see each other's name and email.</p>
     <h4>5. Your rights</h4>
     <p>You may access, correct, or delete your data at any time. You can delete a board from your Boards page and withdraw cookie consent through Cookie settings.</p>
     <h4>6. Minors</h4>
@@ -673,7 +691,8 @@ svg.word{display:block;height:.78em;width:1.81em;flex:none;color:currentColor;ov
     <h4>4. Acceptable use</h4>
     <p>Do not try to break, hack, or overload the site.</p>
     <h4>5. Demo limitations</h4>
-    <p>This is a demo. Boards are stored only in your browser and can be lost if browser data is cleared or storage runs out. There is no backup, export, or device sync yet. Keep copies of anything important.</p>
+    <p data-local>This is a demo. Boards are stored only in your browser and can be lost if browser data is cleared or storage runs out. There is no backup, export, or device sync yet. Keep copies of anything important.</p>
+    <p data-online>JAS is an early version. Anyone you add to a board can edit or remove its content. Keep copies of anything important.</p>
     <h4>6. Termination</h4>
     <p>We may suspend accounts that break these terms. You may delete your boards at any time.</p>
     <h4>7. Changes</h4>
@@ -720,6 +739,18 @@ svg.word{display:block;height:.78em;width:1.81em;flex:none;color:currentColor;ov
   <div class="dlg-f"><button class="btn" data-close>Got it</button></div>
 </dialog>
 
+<dialog id="dlg-share">
+  <div class="dlg-h"><h2>Share this board</h2><button class="x-btn" data-close aria-label="Close">×</button></div>
+  <div class="dlg-b">
+    <p>People you add can open this board and edit it with you at the same time. They need a JAS account first.</p>
+    <form id="sh-form" novalidate><input id="sh-email" type="email" placeholder="Their JAS email" autocomplete="off" aria-label="Email of the person to add"><button class="btn" type="submit">Add</button></form>
+    <p id="sh-msg" role="status"></p>
+    <h4>People on this board</h4>
+    <ul class="mlist" id="sh-list"></ul>
+  </div>
+  <div class="dlg-f"><button class="btn ghost" data-close>Done</button></div>
+</dialog>
+
 <dialog id="dlg-feature">
   <div class="dlg-h"><h2 id="df-title">Feature</h2><button class="x-btn" data-close aria-label="Close">×</button></div>
   <div class="dlg-b" id="df-body"></div>
@@ -743,6 +774,28 @@ const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid = () => Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4);
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+// key-sorted JSON so the same data always compares equal (the database reorders keys)
+const canon = v => JSON.stringify(v, (k,x) => x && typeof x==='object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map(key=>[key,x[key]])) : x);
+
+/* ---------------- Online mode (Supabase) ----------------
+   Put the Project URL and the anon / publishable key here to turn on online accounts and shared boards.
+   Leave them empty to keep everything in this browser. Never put the service_role or secret key here. */
+const CLOUD_CONFIG = { url:'https://qxejaxieoqqjljxrneau.supabase.co', key:'sb_publishable_AOSdoutGZEoQtKnNRy4ZPA_fjTGTYcu' };
+let sb = null;
+const cloud = () => !!sb;
+function loadScript(src){ return new Promise((ok,no)=>{ const el=document.createElement('script'); el.src=src; el.onload=ok; el.onerror=no; document.head.append(el); }); }
+async function initCloud(){
+  if(!CLOUD_CONFIG.url || !CLOUD_CONFIG.key) return false;
+  try{
+    if(!window.supabase) await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.3/dist/umd/supabase.js');
+    sb = window.supabase.createClient(CLOUD_CONFIG.url, CLOUD_CONFIG.key);
+    return true;
+  }catch(e){ console.warn('Online mode is not available, using this browser only', e); sb=null; return false; }
+}
+const newId = () => cloud() && crypto.randomUUID ? crypto.randomUUID() : uid();
+const netErr = m => /fetch|network|load failed/i.test(m||'');
+const PA_COLORS = ['#1f7a45','#1d4ed8','#b45309','#7c3aed','#be185d','#0f766e','#b3261e'];
+const paColor = id => PA_COLORS[[...String(id)].reduce((h,c)=>(h*31+c.charCodeAt(0))>>>0,0)%PA_COLORS.length];
 
 async function hash(pw){
   try{
@@ -851,11 +904,12 @@ const TEMPLATES = [
 let me = null;
 const users = () => store.get('jas_users', {});
 const boardsKey = () => 'jas_boards:' + me.email;
-const loadBoards = () => store.get(boardsKey(), []);
+let boardCache = [];
+const loadBoards = () => cloud() ? boardCache : store.get(boardsKey(), []);
 function newBoardFrom(tplId, titleOverride){
   const t = TEMPLATES.find(x=>x.id===tplId) || TEMPLATES[0];
   const d = t.build();
-  return { id:uid(), title:titleOverride||d.title, items:d.items, links:d.links, labels:d.labels, assets:{}, view:null, created:Date.now(), updated:Date.now() };
+  return { id:newId(), title:titleOverride||d.title, items:d.items, links:d.links, labels:d.labels, assets:{}, view:null, created:Date.now(), updated:Date.now() };
 }
 async function seedDemo(){
   const u = users();
@@ -890,6 +944,15 @@ $('#form-in').addEventListener('submit', async e=>{
   e.preventDefault();
   const email = $('#in-email').value.trim().toLowerCase(), pass = $('#in-pass').value;
   if(!email || !pass) return showErr('#in-err','Enter your email and password.');
+  if(cloud()){
+    const btn=e.submitter; if(btn) btn.disabled=true;
+    const {data,error} = await sb.auth.signInWithPassword({email, password:pass});
+    if(btn) btn.disabled=false;
+    if(error) return showErr('#in-err', /confirm/i.test(error.message) ? 'Please confirm your email first. Check your inbox, then sign in.'
+      : netErr(error.message) ? 'Could not reach JAS. Check your internet connection and try again.'
+      : 'Email or password is incorrect. Try again or create an account.');
+    return loginCloud(data.user);
+  }
   const u = users()[email];
   if(!u || u.pass !== await hash(pass)) return showErr('#in-err','Email or password is incorrect. Try again or create an account.');
   login(u, $('#in-remember').checked);
@@ -900,10 +963,20 @@ $('#form-up').addEventListener('submit', async e=>{
   const name=$('#up-name').value.trim(), email=$('#up-email').value.trim().toLowerCase(), p1=$('#up-pass').value, p2=$('#up-pass2').value;
   if(!name) return showErr('#up-err','Enter your full name.');
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showErr('#up-err','Enter a valid email address.');
-  if(users()[email]) return showErr('#up-err','May account na gamit ang email na ito. Sign in instead.');
+  if(!cloud() && users()[email]) return showErr('#up-err','May account na gamit ang email na ito. Sign in instead.');
   if(p1.length<8) return showErr('#up-err','Password must be at least 8 characters.');
   if(p1!==p2) return showErr('#up-err','Passwords do not match.');
   if(!$('#up-terms').checked) return showErr('#up-err','Please agree to the Terms of Service and Privacy Policy.');
+  if(cloud()){
+    const btn=$('#up-submit'); btn.disabled=true;
+    const {data,error} = await sb.auth.signUp({email, password:p1, options:{data:{name, focus:$('#up-focus').value, agreed_at:new Date().toISOString()}}});
+    btn.disabled=false;
+    const taken = 'May account na gamit ang email na ito. Sign in instead.';
+    if(error) return showErr('#up-err', /already/i.test(error.message) ? taken : netErr(error.message) ? 'Could not reach JAS. Check your internet connection and try again.' : error.message);
+    if(data.user && Array.isArray(data.user.identities) && !data.user.identities.length) return showErr('#up-err', taken);
+    if(!data.session){ switchTab('in'); $('#in-email').value=email; return showErr('#in-err','Account created. Check your email to confirm it, then sign in.'); }
+    await loginCloud(data.user); toast('Account created. Welcome to JAS!'); return;
+  }
   const u = { name, email, focus:$('#up-focus').value, pass: await hash(p1), agreedAt:new Date().toISOString() };
   const all = users(); all[email]=u; store.set('jas_users', all);
   login(u, true); toast('Account created. Welcome to JAS!');
@@ -911,14 +984,21 @@ $('#form-up').addEventListener('submit', async e=>{
 
 function login(u, remember){
   me = u;
-  if(remember) store.set('jas_session', u.email); else store.del('jas_session');
+  if(!cloud()){ if(remember) store.set('jas_session', u.email); else store.del('jas_session'); }
   const first = u.name.split(' ')[0];
   $('#u-name').textContent = $('#l-name').textContent = first;
   $('#u-initial').textContent = $('#l-initial').textContent = first[0].toUpperCase();
   showLobby();
 }
-$('#logout').onclick = $('#l-logout').onclick = ()=>{
-  store.del('jas_session'); me=null;
+async function loginCloud(user){
+  const m = user.user_metadata || {};
+  login({ id:user.id, email:user.email, name:(m.name||'').trim() || user.email.split('@')[0], focus:m.focus||'blank' }, true);
+  await refreshBoards(); if(!$('#lobby').hidden) renderLobby();
+}
+$('#logout').onclick = $('#l-logout').onclick = async ()=>{
+  if(cloud()){ stopSync(); boardCache=[]; await sb.auth.signOut().catch(()=>{}); }
+  else store.del('jas_session');
+  me=null;
   $('#form-in').reset(); showAuth('in'); toast('Logged out.');
 };
 
@@ -1019,7 +1099,7 @@ function renderLobby(){
   $('#feature-grid').innerHTML = FEATURES.map(featureCard).join('');
   if(!$('#caps').innerHTML) $('#caps').innerHTML = CAPS.map(([b,t])=>`<div class="cap"><b>${esc(b)}</b><span>${esc(t)}</span></div>`).join('');
   // "Continue where you left off": only for a signed-in user with saved boards in this browser
-  const rw=$('#resume-wrap'), boards = u ? store.get('jas_boards:'+u.email, []) : [];
+  const rw=$('#resume-wrap'), boards = u ? loadBoards() : [];
   if(!u || !boards.length){ rw.hidden=true; return; }
   const lastId = store.get('jas_cookie',{}).pref ? store.get('jas_last_board:'+u.email, null) : null;
   const b = boards.find(x=>x.id===lastId) || [...boards].sort((a,c)=>c.updated-a.updated)[0];
@@ -1032,7 +1112,7 @@ function renderLobby(){
 function showView(v){
   ['home','templates'].forEach(n => $('#v-'+n).hidden = n!==v);
   $$('nav.main button').forEach(b => b.dataset.view===v ? b.setAttribute('aria-current','page') : b.removeAttribute('aria-current'));
-  if(v==='home') renderHome();
+  if(v==='home'){ renderHome(); if(cloud()) refreshBoards().then(()=>{ if(me && !$('#app').hidden && !$('#v-home').hidden) renderHome(); }); }
   if(v==='templates') renderTemplates();
   window.scrollTo(0,0);
 }
@@ -1078,25 +1158,42 @@ function renderHome(){
     <div class="bcard">
       <button class="open" data-open-board="${b.id}">
         <div class="thumb">${thumbSVG(b.items,b.links) || '<span class="empty">Blank canvas</span>'}</div>
-        <div class="cbody">${b.id===last?'<span class="tag">Last opened</span>':''}<strong>${esc(b.title||'Untitled board')}</strong><span>Edited ${ago(b.updated)} · ${b.items.length} item${b.items.length===1?'':'s'}</span></div>
+        <div class="cbody">${b.id===last?'<span class="tag">Last opened</span>':''}${cloud() && b.owner && b.owner!==me.id?'<span class="tag">Shared with you</span>':''}<strong>${esc(b.title||'Untitled board')}</strong><span>Edited ${ago(b.updated)} · ${b.items.length} item${b.items.length===1?'':'s'}</span></div>
       </button>
-      <div class="bacts">${pendingDelete===b.id
-        ? `<span class="empty" style="flex-basis:100%">Delete this board for good?</span><button class="btn danger sm" data-del-yes="${b.id}">Delete</button><button class="btn ghost sm" data-del-no>Keep it</button>`
-        : `<button class="btn ghost sm" data-dup-board="${b.id}">Duplicate</button><button class="btn ghost sm" data-del-board="${b.id}">Delete</button>`}</div>
+      <div class="bacts">${(()=>{ const mine = !cloud() || !b.owner || b.owner===me.id;
+        return pendingDelete===b.id
+        ? `<span class="empty" style="flex-basis:100%">${mine?'Delete this board for good? It is removed for everyone on it.':'Leave this shared board? You will need to be added again.'}</span><button class="btn danger sm" data-del-yes="${b.id}">${mine?'Delete':'Leave'}</button><button class="btn ghost sm" data-del-no>${mine?'Keep it':'Stay'}</button>`
+        : `<button class="btn ghost sm" data-dup-board="${b.id}">Duplicate</button><button class="btn ghost sm" data-del-board="${b.id}">${mine?'Delete':'Leave'}</button>`; })()}</div>
     </div>`).join('') : `<p class="empty">No boards yet. Start with a blank board or pick a template above.</p>`;
   $$('[data-open-board]').forEach(b=>b.onclick=()=>openBoard(b.dataset.openBoard));
-  $$('[data-dup-board]').forEach(b=>b.onclick=()=>{
+  $$('[data-dup-board]').forEach(b=>b.onclick=async ()=>{
+    if(cloud()){
+      const src = await DB.get(b.dataset.dupBoard).catch(()=>null); if(!src) return toast('Could not copy this board. Check your connection.');
+      const copy={...src, id:newId(), title:(src.title||'Untitled board')+' (copy)', owner:me.id, created:Date.now(), updated:Date.now()};
+      try{ await DB.insert(copy); toast('Board duplicated'); }catch(e){ toast('Could not copy this board. Check your connection.'); }
+      return renderHome();
+    }
     const all=loadBoards(), src=all.find(x=>x.id===b.dataset.dupBoard); if(!src) return;
     const copy=JSON.parse(JSON.stringify(src)); copy.id=uid(); copy.title=(src.title||'Untitled board')+' (copy)'; copy.updated=copy.created=Date.now();
     all.push(copy); if(!store.set(boardsKey(), all) && storageOK) toast('Not enough browser storage to copy this board'); else toast('Board duplicated'); renderHome();
   });
   $$('[data-del-board]').forEach(b=>b.onclick=()=>{ pendingDelete=b.dataset.delBoard; renderHome(); });
   $$('[data-del-no]').forEach(b=>b.onclick=()=>{ pendingDelete=null; renderHome(); });
-  $$('[data-del-yes]').forEach(b=>b.onclick=()=>{ store.set(boardsKey(), loadBoards().filter(x=>x.id!==b.dataset.delYes)); pendingDelete=null; toast('Board deleted'); renderHome(); });
+  $$('[data-del-yes]').forEach(b=>b.onclick=async ()=>{
+    if(cloud()){
+      const bd = boardCache.find(x=>x.id===b.dataset.delYes); pendingDelete=null; if(!bd) return renderHome();
+      try{ await DB.remove(bd); toast(bd.owner===me.id?'Board deleted':'You left the board'); }catch(e){ toast('Could not do that. Check your connection.'); }
+      return renderHome();
+    }
+    store.set(boardsKey(), loadBoards().filter(x=>x.id!==b.dataset.delYes)); pendingDelete=null; toast('Board deleted'); renderHome(); });
 }
 $('#new-blank').onclick = ()=>createAndOpen('blank');
-function createAndOpen(tplId){
+async function createAndOpen(tplId){
   const b = newBoardFrom(tplId);
+  if(cloud()){
+    try{ await DB.insert(b); }catch(e){ return toast('Could not create the board. Check your connection and try again.'); }
+    return openBoard(b.id);
+  }
   const all = loadBoards(); all.push(b);
   if(!store.set(boardsKey(), all) && storageOK) return toast('Browser storage is full. Delete a board and try again.');
   openBoard(b.id);
@@ -1114,8 +1211,13 @@ const snap = () => JSON.stringify({items:W.board.items, links:W.board.links, lab
 // arrowhead markers, one per line colour (last one is the selection colour)
 $('#markers').innerHTML = [...LINE_COLORS,'#1f9d5a'].map((c,i)=>`<marker id="ah${i}" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="5" markerHeight="5" markerUnits="strokeWidth" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`).join('');
 
-function openBoard(id){
-  const b = loadBoards().find(x=>x.id===id); if(!b) return toast('That board could not be found.');
+async function openBoard(id){
+  let b;
+  if(cloud()){
+    b = await DB.get(id).catch(()=>null);
+    if(!b) return toast('That board could not be opened. It may have been deleted, or you were removed from it.');
+  } else b = loadBoards().find(x=>x.id===id);
+  if(!b) return toast('That board could not be found.');
   b.assets = b.assets || {}; b.labels = b.labels || [];
   W.board=b; W.sel=new Set(); W.selLink=null; W.undo=[]; W.redo=[]; W.editing=null; W.pendingFrom=null; W.focusLabel=null;
   els.forEach(el=>el.remove()); els.clear();
@@ -1125,10 +1227,12 @@ function openBoard(id){
   if(store.get('jas_cookie',{}).pref) store.set('jas_last_board:'+me.email, b.id);
   if(!b.view) fitView(); else applyView();
   setTool('select'); setStatus('saved'); updUndo();
+  $('#b-share').hidden = !cloud(); $('#b-people').innerHTML='';
+  if(cloud()) startSync(b);
   vp.focus({preventScroll:true});
 }
 function closeBoard(){
-  endEdit(); flushSave();
+  endEdit(); flushSave(); stopSync();
   $('#ws').hidden=true; document.body.classList.remove('in-board');
   W.board=null; showScreen('app'); showView('home');
 }
@@ -1141,6 +1245,12 @@ $('#b-title').addEventListener('blur', e=>{ if(W.board && !e.target.value.trim()
 let saveT=null;
 function setStatus(s){
   const el=$('#b-status'); el.classList.toggle('bad', s==='error');
+  if(cloud()){
+    el.classList.toggle('bad', s==='offline');
+    el.textContent = s==='saving' ? 'Saving…' : s==='offline' ? 'Offline, retrying…' : 'Saved';
+    el.title = s==='offline' ? 'Could not reach JAS. Your changes are kept here and will save when you are back online.' : 'Saved online. Everyone on this board sees your changes.';
+    return;
+  }
   el.textContent = s==='saving' ? 'Saving…' : s==='error' ? 'Not saved: storage full' : storageOK ? 'Saved' : 'Saved for this visit only';
   el.title = s==='error' ? 'Browser storage is full. Remove large images or delete old boards to free space.' : storageOK ? 'Auto-saved in this browser' : 'This browser blocks storage. Changes will be lost when you close the page.';
 }
@@ -1148,6 +1258,7 @@ function saveSoon(){ setStatus('saving'); clearTimeout(saveT); saveT=setTimeout(
 function flushSave(){
   clearTimeout(saveT); saveT=null;
   const b=W.board; if(!b) return;
+  if(cloud()){ store.set('jas_view:'+b.id, b.view); return cloudSave(); }
   // Only images still on the board are written to storage; undo history keeps the rest in memory for this visit
   const used = new Set(b.items.filter(i=>i.type==='image').map(i=>i.src));
   b.updated = Date.now();
@@ -1159,6 +1270,192 @@ function flushSave(){
 }
 addEventListener('pagehide', ()=>{ if(saveT) flushSave(); });
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden && saveT) flushSave(); });
+
+/* ---------- Online boards and live sync ---------- */
+const usedAssets = b => { const used=new Set(b.items.filter(i=>i.type==='image').map(i=>i.src)); return Object.fromEntries(Object.entries(b.assets||{}).filter(([k])=>used.has(k))); };
+const docOf = b => ({ title:b.title||'', items:b.items, links:b.links, labels:b.labels });
+function rowToBoard(r){
+  const d = r.data || { items:r.items, links:r.links };
+  return { id:r.id, title:r.title, items:d.items||[], links:d.links||[], labels:d.labels||[], assets:d.assets||{}, _rev:d._rev ?? null,
+           view:store.get('jas_view:'+r.id, null), created:d.created||Date.parse(r.updated_at), updated:Date.parse(r.updated_at), owner:r.owner, updatedBy:r.updated_by };
+}
+const DB = {
+  async get(id){
+    const {data,error} = await sb.from('boards').select('id,title,data,owner,updated_at,updated_by').eq('id',id).maybeSingle();
+    if(error) throw error; return data && rowToBoard(data);
+  },
+  async insert(b){
+    b._rev = uid(); b.owner = me.id;
+    const {error} = await sb.from('boards').insert({ id:b.id, title:b.title||'Untitled board', data:{ items:b.items, links:b.links, labels:b.labels, assets:usedAssets(b), created:b.created, _rev:b._rev } });
+    if(error) throw error; boardCache.push(b);
+  },
+  async remove(b){
+    const q = b.owner===me.id ? sb.from('boards').delete().eq('id',b.id) : sb.from('board_members').delete().eq('board_id',b.id).eq('user_id',me.id);
+    const {error} = await q; if(error) throw error;
+    boardCache = boardCache.filter(x=>x.id!==b.id);
+  }
+};
+async function refreshBoards(){
+  if(!cloud() || !me) return;
+  // the list only needs what the thumbnails draw, not the images
+  const {data,error} = await sb.from('boards').select('id,title,owner,updated_at,updated_by,items:data->items,links:data->links');
+  if(error){ toast('Could not load your boards. Check your connection.'); return; }
+  boardCache = data.map(rowToBoard);
+}
+
+// 3-way merge: what we last agreed with the server (base), my copy (mine), the server's copy (theirs)
+function mergeById(base, mine, theirs){
+  const B=new Map(base.map(x=>[x.id,x])), M=new Map(mine.map(x=>[x.id,x])), T=new Map(theirs.map(x=>[x.id,x]));
+  const out=[];
+  for(const id of new Set([...theirs.map(x=>x.id), ...mine.map(x=>x.id)])){
+    const b=B.get(id), m=M.get(id), t=T.get(id), bs=b&&canon(b), ms=m&&canon(m), ts=t&&canon(t);
+    let pick;
+    if(ms===bs) pick=t;                 // I did not touch it: take theirs, including their delete
+    else if(ts===bs) pick=m;            // they did not touch it: keep mine
+    else if(m && t && b){               // both changed it: merge field by field, mine wins a clash
+      pick={...t};
+      for(const k of new Set([...Object.keys(m),...Object.keys(b)])) if(canon(m[k])!==canon(b[k])) pick[k]=m[k];
+    } else pick = m || t;               // an edit beats a delete
+    if(pick) out.push(pick);
+  }
+  return out;
+}
+let S = null, nameToastT = 0;
+function mergeRemote(s, b, r){
+  const base=s.base, theirs=docOf(r);
+  b.items = mergeById(base.items, b.items, theirs.items);
+  b.links = mergeById(base.links, b.links, theirs.links).filter(l=>b.items.some(i=>i.id===l.from) && b.items.some(i=>i.id===l.to));
+  b.labels = mergeById(base.labels, b.labels, theirs.labels);
+  if((b.title||'')===base.title) b.title = theirs.title;
+  b.assets = {...r.assets, ...b.assets};
+  s.base = JSON.parse(canon(theirs)); s.rev = r._rev; s.sent = canon(theirs);
+  if(W.board!==b) return;
+  W.sel = new Set([...W.sel].filter(id=>find(id)));
+  if(W.selLink && !b.links.find(l=>l.id===W.selLink)) W.selLink=null;
+  if(W.editing && !find(W.editing)) W.editing=null;
+  W.undo=[]; W.redo=[]; updUndo();     // undo would roll back other people's work
+  if(document.activeElement!==$('#b-title')) $('#b-title').value = b.title || 'Untitled board';
+  render();
+  if(r.updatedBy && r.updatedBy!==me.id && Date.now()-nameToastT>10000){
+    nameToastT=Date.now();
+    const who = s.people[r.updatedBy]?.name?.split(' ')[0] || 'Someone';
+    toast(`${who} updated the board`);
+  }
+}
+async function cloudSave(s=S, b=W.board){
+  if(!s || !b || s.id!==b.id) return;
+  if(s.saving){ s.again=true; return; }
+  const doc = canon(docOf(b));
+  if(doc===s.sent){ if(W.board===b && !saveT) setStatus('saved'); return; }
+  s.saving=true; clearTimeout(s.retryT);
+  const rev = uid();
+  let q = sb.from('boards').update({ title:b.title||'Untitled board', updated_at:new Date().toISOString(), updated_by:me.id,
+            data:{ items:b.items, links:b.links, labels:b.labels, assets:usedAssets(b), created:b.created, _rev:rev } }).eq('id', b.id);
+  q = s.rev==null ? q.is('data->_rev', null) : q.eq('data->>_rev', s.rev);   // only if nobody saved since we last synced
+  const {data,error} = await q.select('id');
+  s.saving=false;
+  if(error){
+    if(W.board===b){ setStatus('offline'); s.retryT=setTimeout(()=>cloudSave(s,b), 5000); }
+    return;
+  }
+  if(!data.length){
+    // someone else saved first (or we lost access): merge their copy into ours, then try again
+    const r = await DB.get(b.id).catch(()=>undefined);
+    if(r===null){ if(W.board===b){ toast('You no longer have access to this board.'); closeBoard(); } return; }
+    if(r===undefined){ if(W.board===b){ setStatus('offline'); s.retryT=setTimeout(()=>cloudSave(s,b), 5000); } return; }
+    mergeRemote(s, b, r); return cloudSave(s, b);
+  }
+  s.rev=rev; s.base=JSON.parse(doc); s.sent=doc;
+  const c=boardCache.find(x=>x.id===b.id); if(c) Object.assign(c, {title:b.title, items:b.items, links:b.links, updated:Date.now()});
+  if(s.again){ s.again=false; return cloudSave(s, b); }
+  if(s.pull){ s.pull=false; pullRemote(s); }
+  if(W.board===b && !saveT) setStatus('saved');
+}
+async function pullRemote(s=S){
+  const b=W.board; if(!s || !b || s.id!==b.id) return;
+  if(s.saving || s.pulling){ s.pull=true; return; }
+  s.pulling=true;
+  const r = await DB.get(b.id).catch(()=>undefined);
+  s.pulling=false;
+  if(W.board!==b || S!==s) return;
+  if(r===null){ toast('This board was deleted, or you were removed from it.'); return closeBoard(); }
+  if(!r || r._rev===s.rev) return;
+  if(s.saving){ s.pull=true; return; }
+  mergeRemote(s, b, r);
+  if(canon(docOf(b))!==s.sent) saveSoon();
+}
+function startSync(b){
+  stopSync();
+  const s = S = { id:b.id, rev:b._rev, base:JSON.parse(canon(docOf(b))), sent:canon(docOf(b)), saving:false, again:false, pull:false, pulling:false, people:{} };
+  s.chan = sb.channel('board-'+b.id, { config:{ presence:{ key:me.id } } })
+    .on('postgres_changes', { event:'UPDATE', schema:'public', table:'boards', filter:'id=eq.'+b.id }, p=>{
+      if(S===s && p.new?.data?._rev !== s.rev) pullRemote(s);
+    })
+    .on('presence', { event:'sync' }, ()=>{ if(S===s) paintPeople(s); })
+    .subscribe(st=>{ if(st==='SUBSCRIBED') s.chan.track({ name:me.name, email:me.email }); });
+  // backup check in case live updates are blocked on this network
+  s.poll = setInterval(async ()=>{
+    if(document.hidden || s.saving || S!==s) return;
+    const {data} = await sb.from('boards').select('rev:data->>_rev').eq('id',s.id).maybeSingle();
+    if(data && data.rev!==s.rev && S===s) pullRemote(s);
+  }, 15000);
+}
+function stopSync(){
+  if(!S) return;
+  clearInterval(S.poll); clearTimeout(S.retryT);
+  if(S.chan) sb.removeChannel(S.chan);
+  S=null; $('#b-people').innerHTML='';
+}
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && S) pullRemote(S); });
+addEventListener('online', ()=>{ if(S){ cloudSave(S); pullRemote(S); } });
+function paintPeople(s){
+  const st = s.chan.presenceState(), people={};
+  for(const [id,metas] of Object.entries(st)) if(metas[0]) people[id]=metas[0];
+  s.people = {...s.people, ...people};
+  const others = Object.entries(people).filter(([id])=>id!==me.id);
+  const show = others.slice(0,3);
+  $('#b-people').innerHTML = show.map(([id,p])=>`<span class="pa" style="background:${paColor(id)}" title="${esc(p.name)} is here">${esc((p.name||'?')[0].toUpperCase())}</span>`).join('')
+    + (others.length>3 ? `<span class="pa more" title="${others.length-3} more">+${others.length-3}</span>` : '');
+}
+
+/* ---------- Share ---------- */
+$('#b-share').onclick = ()=>{ $('#sh-msg').textContent=''; $('#sh-email').value=''; $('#dlg-share').showModal(); loadMembers(); setTimeout(()=>$('#sh-email').focus(),0); };
+async function loadMembers(){
+  const b=W.board, list=$('#sh-list'); if(!b) return;
+  list.innerHTML = '<li><span class="mi"><span>Loading…</span></span></li>';
+  const {data:mem, error} = await sb.from('board_members').select('user_id,role').eq('board_id', b.id);
+  if(error){ list.innerHTML = '<li><span class="mi"><span>Could not load the list. Check your connection.</span></span></li>'; return; }
+  const {data:pro} = await sb.from('profiles').select('id,name,email').in('id', mem.map(m=>m.user_id));
+  const P = Object.fromEntries((pro||[]).map(p=>[p.id,p]));
+  const iOwn = b.owner===me.id;
+  mem.sort((a,c)=> (c.user_id===b.owner) - (a.user_id===b.owner));
+  list.innerHTML = mem.map(m=>{
+    const p=P[m.user_id]||{name:'JAS user', email:''}, you=m.user_id===me.id, owner=m.user_id===b.owner;
+    const act = owner ? '' : you ? `<button class="btn ghost sm" data-leave>Leave</button>` : iOwn ? `<button class="btn ghost sm" data-remove="${m.user_id}">Remove</button>` : '';
+    return `<li><span class="pa" style="background:${paColor(m.user_id)}">${esc((p.name||p.email||'?')[0].toUpperCase())}</span>
+      <span class="mi"><b>${esc(p.name||p.email)}${you?' (you)':''}</b><span>${esc(p.email)}</span></span><span class="role">${owner?'Owner':'Can edit'}</span>${act}</li>`;
+  }).join('');
+  list.querySelectorAll('[data-remove]').forEach(x=>x.onclick=async ()=>{
+    const {error} = await sb.from('board_members').delete().eq('board_id',b.id).eq('user_id',x.dataset.remove);
+    shMsg(error ? 'Could not remove them. Check your connection.' : 'Removed from this board.', !!error); loadMembers();
+  });
+  list.querySelectorAll('[data-leave]').forEach(x=>x.onclick=async ()=>{
+    const bd = boardCache.find(y=>y.id===b.id) || b;
+    try{ await DB.remove(bd); $('#dlg-share').close(); toast('You left the board'); closeBoard(); }catch(e){ shMsg('Could not leave. Check your connection.', true); }
+  });
+}
+function shMsg(t, bad){ const m=$('#sh-msg'); m.textContent=t; m.classList.toggle('bad', !!bad); }
+$('#sh-form').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const email=$('#sh-email').value.trim().toLowerCase(), b=W.board; if(!b) return;
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return shMsg('Enter a valid email address.', true);
+  if(email===me.email.toLowerCase()) return shMsg('That is your own email. You are already on this board.', true);
+  shMsg('Adding…');
+  const {data,error} = await sb.rpc('add_board_member', { b:b.id, member_email:email });
+  if(error) return shMsg('Could not add them. Check your connection and try again.', true);
+  if(!data?.ok) return shMsg('No JAS account uses that email yet. Ask them to sign up first, then add them again.', true);
+  $('#sh-email').value=''; shMsg('Added. The board now shows up in their Boards page.'); loadMembers();
+});
 
 /* ---------- History ---------- */
 function updUndo(){ $('#b-undo').disabled=!W.undo.length; $('#b-redo').disabled=!W.redo.length; }
@@ -1681,8 +1978,14 @@ $('#ck-save').onclick = ()=>{ setCookie({pref:$('#ck-pref').checked, analytics:$
 
 /* ---------------- Boot ---------------- */
 (async function(){
-  await seedDemo();
   if(!store.get('jas_cookie',null)) $('#cookie').hidden = false;
+  if(await initCloud()){
+    document.body.classList.add('online');
+    $$('.demo').forEach(d=>d.hidden=true);
+    const {data} = await sb.auth.getSession().catch(()=>({data:{}}));
+    return data?.session ? loginCloud(data.session.user) : showAuth('in');
+  }
+  await seedDemo();
   const sess = sessionUser();
   if(sess) login(sess, true); else showAuth('in');
 })();
