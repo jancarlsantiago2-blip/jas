@@ -182,13 +182,15 @@ footer.foot nav{display:flex;gap:1rem;flex-wrap:wrap}
 .cap b{font-family:var(--display);font-size:1rem}
 .cap span{color:var(--muted);font-size:.88rem}
 .about{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.about.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.lnav .acts.user{display:flex;align-items:center;gap:.6rem}
 .about .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:grid;gap:.5rem;align-content:start}
 .about h3{font-size:1.15rem}
 .about p{margin:0;color:var(--muted)}
 .ph{background:var(--warn-bg);color:var(--warn);border:1px dashed currentColor;border-radius:6px;padding:0 .35rem;font-weight:700;overflow-wrap:anywhere}
 #dlg-feature ul{padding-left:1.1rem}
 @media (max-width:860px){
-  .hero .wrap,.about,.fcard.lead{grid-template-columns:1fr}
+  .hero .wrap,.about,.about.three,.fcard.lead{grid-template-columns:1fr}
   .fcard.lead .thumb{border-right:0;border-bottom:1px solid var(--line);min-height:0;aspect-ratio:16/9}
   .hero{padding-block:32px 24px}
 }
@@ -350,13 +352,14 @@ svg.word{display:block;height:.78em;width:1.81em;flex:none;color:currentColor;ov
     <div class="wrap">
       <button class="logo-btn" data-scroll="lobby-top" aria-label="JAS home"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#jas-mark"/></svg><svg class="word" viewBox="0 0 102 44" aria-hidden="true"><use href="#jas-word" width="102" height="44"/></svg><span class="sr">JAS</span></button>
       <nav aria-label="Lobby">
+        <button data-scroll="lobby-top">About</button>
         <button data-scroll="features">Features</button>
         <button data-scroll="workspace">Notes Workspace</button>
-        <button data-scroll="about">About</button>
       </nav>
-      <div class="acts">
-        <button class="btn ghost" id="l-signin" data-signin style="padding:.45rem .9rem">Sign in</button>
-        <button class="btn" id="l-myboards" data-myboards hidden style="padding:.45rem .9rem">My boards</button>
+      <div class="acts user">
+        <div class="avatar" id="l-initial">J</div>
+        <span class="uname" id="l-name">Juan</span>
+        <button class="btn ghost" id="l-logout" style="padding:.45rem .8rem">Log out</button>
       </div>
     </div>
   </header>
@@ -365,12 +368,12 @@ svg.word{display:block;height:.78em;width:1.81em;flex:none;color:currentColor;ov
     <section class="hero" id="lobby-top">
       <div class="wrap">
         <div>
-          <span class="eyebrow">Notes · Plans · Ideas</span>
+          <span class="eyebrow" id="l-hello">Welcome to JAS</span>
           <h1>One open canvas for <em>everything</em> you plan.</h1>
           <p class="lead">JAS is a place to take notes, plan, and get organized. Lay out a trip, map a business idea, or sort a messy to-do list on a board you can shape however you like.</p>
           <div class="cta">
-            <button class="btn" data-scroll="features">Explore features</button>
-            <button class="btn ghost" id="h-signin" data-signin>Sign in</button>
+            <button class="btn" data-scroll="features">Choose a feature</button>
+            <button class="btn ghost" data-open-notes>Open Notes Workspace</button>
           </div>
           <div class="uses" aria-label="Things people plan with JAS"><span>Trips</span><span>Business ideas</span><span>Events</span><span>Projects</span><span>Brainstorms</span></div>
         </div>
@@ -382,14 +385,35 @@ svg.word{display:block;height:.78em;width:1.81em;flex:none;color:currentColor;ov
       </div>
     </section>
 
-    <div class="wrap" id="resume-wrap" hidden><div class="resume" id="resume"></div></div>
+    <section class="lsec alt" id="about">
+      <div class="wrap">
+        <div class="lsec-h"><span class="eyebrow">About JAS</span><h2>What JAS is, how it was built, and who made it</h2></div>
+        <div class="about three">
+          <div class="panel">
+            <h3>What it's for</h3>
+            <p>JAS gives people one simple place to write things down, plan, and stay organized. Instead of juggling notes apps, spreadsheets, and chat threads, you see the whole plan on one board and move pieces around as it changes.</p>
+          </div>
+          <div class="panel">
+            <h3>How it was built</h3>
+            <p>JAS is a lightweight web app made with plain HTML, CSS, and JavaScript, with no extra frameworks. It runs in your browser, is hosted for free on GitHub Pages, and was designed and coded with the help of Claude, an AI assistant.</p>
+          </div>
+          <div class="panel">
+            <h3>Who made it</h3>
+            <p>JAS was created by <b style="color:var(--fg)">Jancarl Angelo H. Santiago</b>.</p>
+            <p><span class="ph">[Short creator bio to be confirmed]</span></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="wrap" id="resume-wrap" hidden style="margin-top:28px"><div class="resume" id="resume"></div></div>
 
     <section class="lsec" id="features">
       <div class="wrap">
         <div class="lsec-h">
-          <span class="eyebrow">Feature marketplace</span>
-          <h2>Pick the tools you need</h2>
-          <p>Each feature is a mode inside JAS. Start with Notes Workspace today. More planners are on the way.</p>
+          <span class="eyebrow">Choose a mode</span>
+          <h2>Pick a feature to use</h2>
+          <p>Each feature is a mode inside JAS. For now there's one, Notes Workspace. As more arrive, you'll choose the mode you want to use right here.</p>
         </div>
         <div class="fgrid" id="feature-grid"></div>
       </div>
@@ -406,22 +430,6 @@ svg.word{display:block;height:.78em;width:1.81em;flex:none;color:currentColor;ov
       </div>
     </section>
 
-    <section class="lsec" id="about">
-      <div class="wrap">
-        <div class="lsec-h"><span class="eyebrow">About JAS</span><h2>Who made JAS, and why</h2></div>
-        <div class="about">
-          <div class="panel">
-            <h3>Who made it</h3>
-            <p>JAS was created by <b style="color:var(--fg)">Jancarl Angelo H. Santiago</b>.</p>
-            <p><span class="ph">[Short creator bio or team description to be confirmed]</span></p>
-          </div>
-          <div class="panel">
-            <h3>What it's for</h3>
-            <p>JAS was made to give people one simple place to write things down, plan, and stay organized. Instead of juggling notes apps, spreadsheets, and chat threads, you can see the whole plan on one board and move pieces around as it changes.</p>
-          </div>
-        </div>
-      </div>
-    </section>
   </main>
 
   <footer class="foot">
@@ -455,7 +463,6 @@ svg.word{display:block;height:.78em;width:1.81em;flex:none;color:currentColor;ov
 
   <div class="formside">
     <div class="card">
-      <button type="button" class="linkbtn" data-lobby style="display:inline-block;margin-bottom:16px">← Back to JAS home</button>
       <div class="tabs" role="tablist">
         <button id="tab-in" role="tab" aria-selected="true" aria-controls="form-in">Sign in</button>
         <button id="tab-up" role="tab" aria-selected="false" aria-controls="form-up">Sign up</button>
@@ -508,6 +515,7 @@ svg.word{display:block;height:.78em;width:1.81em;flex:none;color:currentColor;ov
     <div class="wrap">
       <button class="logo-btn" data-lobby title="Back to the JAS home page"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#jas-mark"/></svg><svg class="word" viewBox="0 0 102 44" aria-hidden="true"><use href="#jas-word" width="102" height="44"/></svg><span class="sr">JAS</span></button>
       <nav class="main" aria-label="Main">
+        <button data-lobby>All features</button>
         <button data-view="home" aria-current="page">Boards</button>
         <button data-view="templates">Templates</button>
       </nav>
@@ -904,14 +912,14 @@ $('#form-up').addEventListener('submit', async e=>{
 function login(u, remember){
   me = u;
   if(remember) store.set('jas_session', u.email); else store.del('jas_session');
-  showScreen('app');
   const first = u.name.split(' ')[0];
-  $('#u-name').textContent = first; $('#u-initial').textContent = first[0].toUpperCase();
-  showView('home');
+  $('#u-name').textContent = $('#l-name').textContent = first;
+  $('#u-initial').textContent = $('#l-initial').textContent = first[0].toUpperCase();
+  showLobby();
 }
-$('#logout').onclick = ()=>{
+$('#logout').onclick = $('#l-logout').onclick = ()=>{
   store.del('jas_session'); me=null;
-  $('#form-in').reset(); showLobby(); toast('Logged out.');
+  $('#form-in').reset(); showAuth('in'); toast('Logged out.');
 };
 
 /* ---------------- Screens: lobby, auth, app ---------------- */
@@ -922,13 +930,12 @@ function showScreen(name){
 }
 const sessionUser = () => { const s=store.get('jas_session',null); return (s && users()[s]) || null; };
 function showAuth(tab){ showScreen('auth'); switchTab(tab||'in'); setTimeout(()=>$(tab==='up'?'#up-name':'#in-email').focus(),0); }
-function showLobby(){ showScreen('lobby'); renderLobby(); }
-function goToBoards(){ const u = me || sessionUser(); if(u) login(u, !!sessionUser()); else showAuth('in'); }
+function showLobby(){ if(!me) return showAuth('in'); showScreen('lobby'); renderLobby(); }
+function goToBoards(){ if(!me) return showAuth('in'); showScreen('app'); showView('home'); }
 document.addEventListener('click', e=>{
-  const t = e.target.closest('[data-scroll],[data-signin],[data-myboards],[data-lobby]'); if(!t) return;
+  const t = e.target.closest('[data-scroll],[data-open-notes],[data-lobby]'); if(!t) return;
   if(t.dataset.scroll){ document.getElementById(t.dataset.scroll).scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth', block:'start'}); }
-  else if('signin' in t.dataset) showAuth('in');
-  else if('myboards' in t.dataset) goToBoards();
+  else if('openNotes' in t.dataset) goToBoards();
   else if('lobby' in t.dataset) showLobby();
 });
 
@@ -968,7 +975,7 @@ const FEATURES = [
 ];
 function featureAction(f){
   return f.status==='ok'
-    ? `<button class="btn" data-try="${f.id}">${sessionUser()?'Open workspace':'Try it now'}</button>`
+    ? `<button class="btn" data-try="${f.id}">Open workspace</button>`
     : `<button class="btn" disabled aria-disabled="true">Coming soon</button>`;
 }
 function featureCard(f){
@@ -1006,10 +1013,8 @@ const CAPS = [
   ['Optional templates','Start blank, or from travel, business, or event plans.']
 ];
 function renderLobby(){
-  const u = sessionUser();
-  $('#l-signin').hidden = !!u; $('#l-myboards').hidden = !u;
-  $('#h-signin').textContent = u ? 'Go to my boards' : 'Sign in';
-  $('#h-signin').toggleAttribute('data-signin', !u); $('#h-signin').toggleAttribute('data-myboards', !!u);
+  const u = me;
+  $('#l-hello').textContent = `Welcome, ${u.name.split(' ')[0]}`;
   if(!$('#hb-svg').innerHTML){ const d=TEMPLATES.find(t=>t.id==='event').build(); $('#hb-svg').innerHTML=thumbSVG(d.items,d.links); }
   $('#feature-grid').innerHTML = FEATURES.map(featureCard).join('');
   if(!$('#caps').innerHTML) $('#caps').innerHTML = CAPS.map(([b,t])=>`<div class="cap"><b>${esc(b)}</b><span>${esc(t)}</span></div>`).join('');
@@ -1019,7 +1024,7 @@ function renderLobby(){
   const lastId = store.get('jas_cookie',{}).pref ? store.get('jas_last_board:'+u.email, null) : null;
   const b = boards.find(x=>x.id===lastId) || [...boards].sort((a,c)=>c.updated-a.updated)[0];
   $('#resume').innerHTML = `<div><span>Continue where you left off, ${esc(u.name.split(' ')[0])}</span><br><b>${esc(b.title||'Untitled board')}</b> <span>· edited ${ago(b.updated)}</span></div><button class="btn" id="resume-btn">Open board</button>`;
-  $('#resume-btn').onclick = ()=>{ login(u, true); openBoard(b.id); };
+  $('#resume-btn').onclick = ()=>openBoard(b.id);
   rw.hidden=false;
 }
 
@@ -1114,7 +1119,7 @@ function openBoard(id){
   b.assets = b.assets || {}; b.labels = b.labels || [];
   W.board=b; W.sel=new Set(); W.selLink=null; W.undo=[]; W.redo=[]; W.editing=null; W.pendingFrom=null; W.focusLabel=null;
   els.forEach(el=>el.remove()); els.clear();
-  $('#app').hidden=true; $('#ws').hidden=false; document.body.classList.add('in-board');
+  $('#app').hidden=true; $('#lobby').hidden=true; $('#ws').hidden=false; document.body.classList.add('in-board', 'in-app');
   $('#b-title').value = b.title || 'Untitled board';
   $('#labels-panel').hidden = true; $('#b-labels').setAttribute('aria-pressed','false');
   if(store.get('jas_cookie',{}).pref) store.set('jas_last_board:'+me.email, b.id);
@@ -1124,8 +1129,8 @@ function openBoard(id){
 }
 function closeBoard(){
   endEdit(); flushSave();
-  $('#ws').hidden=true; $('#app').hidden=false; document.body.classList.remove('in-board');
-  W.board=null; showView('home');
+  $('#ws').hidden=true; document.body.classList.remove('in-board');
+  W.board=null; showScreen('app'); showView('home');
 }
 $('#b-back').onclick = closeBoard;
 $('#b-title').addEventListener('input', e=>{ W.board.title = e.target.value; saveSoon(); });
@@ -1678,7 +1683,8 @@ $('#ck-save').onclick = ()=>{ setCookie({pref:$('#ck-pref').checked, analytics:$
 (async function(){
   await seedDemo();
   if(!store.get('jas_cookie',null)) $('#cookie').hidden = false;
-  showLobby();
+  const sess = sessionUser();
+  if(sess) login(sess, true); else showAuth('in');
 })();
 </script>
 </body>
