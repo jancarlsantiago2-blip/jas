@@ -1,0 +1,136 @@
+-- JAS: finish setup (admin panel + AI keys). Paste in Supabase → SQL Editor → New query → Run.
+
+create or replace function public.is_admin() returns boolean
+language sql security definer stable set search_path = public as $$
+  select exists (select 1 from admins where user_id = auth.uid());
+$$;
+
+create or replace function public.admin_status() returns json
+language sql security definer stable set search_path = public as $$
+  select json_build_object('is_admin', public.is_admin(), 'has_admin', exists (select 1 from admins));
+$$;
+
+-- The first person to press "Make me admin" becomes the admin. After that, only admins can add admins.
+create or replace function public.claim_admin() returns boolean
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then return false; end if;
+  lock table admins in exclusive mode;
+  if exists (select 1 from admins) then return public.is_admin(); end if;
+  insert into admins (user_id) values (auth.uid());
+  return true;
+end $$;
+
+create or replace function public.touch_seen() returns void
+language sql security definer set search_path = public as $$
+  update profiles set last_seen = now() where id = auth.uid();
+$$;
+
+create or replace function public.admin_stats() returns json
+language plpgsql security definer stable set search_path = public as $$
+declare r json; today date := (now() at time zone 'Asia/Manila')::date;
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  select json_build_object(
+    'users',        (select count(*) from auth.users),
+    'new_7d',       (select count(*) from auth.users where created_at > now() - interval '7 days'),
+    'new_30d',      (select count(*) from auth.users where created_at > now() - interval '30 days'),
+    'active_1d',    (select count(*) from profiles where last_seen > now() - interval '1 day'),
+    'active_7d',    (select count(*) from profiles where last_seen > now() - interval '7 days'),
+    'active_30d',   (select count(*) from profiles where last_seen > now() - interval '30 days'),
+    'boards',       (select count(*) from boards),
+    'boards_7d',    (select count(*) from boards where updated_at > now() - interval '7 days'),
+    'shared_boards',(select count(*) from (select board_id from board_members group by board_id having count(*) > 1) s),
+    'subs_active',  (select count(distinct user_id) from subscriptions where status in ('active','trial') and (ends_at is null or ends_at > now())),
+    'subs_total',   (select count(*) from subscriptions),
+    'revenue_month',(select coalesce(sum(amount),0) from subscriptions where (started_at at time zone 'Asia/Manila')::date >= date_trunc('month', today)::date),
+    'signups', (select json_agg(json_build_object('day', d::date,
+                  'n', (select count(*) from auth.users u where (u.created_at at time zone 'Asia/Manila')::date = d::date)) order by d)
+                from generate_series(today - 29, today, interval '1 day') d)
+  ) into r;
+  return r;
+end $$;
+
+create or replace function public.admin_users() returns json
+language plpgsql security definer stable set search_path = public as $$
+declare r json;
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  select coalesce(json_agg(x order by x.created_at desc), '[]'::json) into r from (
+    select u.id, u.email, coalesce(p.name, '') as name, u.created_at, u.last_sign_in_at, p.last_seen,
+      (select count(*) from boards b where b.owner = u.id) as boards,
+      (select count(*) from board_members m join boards b on b.id = m.board_id where m.user_id = u.id and b.owner <> u.id) as shared_with,
+      exists (select 1 from admins a where a.user_id = u.id) as is_admin,
+      s.plan, s.status, s.ends_at
+    from auth.users u
+    left join profiles p on p.id = u.id
+    left join lateral (select plan, status, ends_at from subscriptions s where s.user_id = u.id order by s.created_at desc limit 1) s on true
+  ) x;
+  return r;
+end $$;
+
+create or replace function public.admin_subscriptions() returns json
+language plpgsql security definer stable set search_path = public as $$
+declare r json;
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  select coalesce(json_agg(x order by x.created_at desc), '[]'::json) into r from (
+    select s.*, u.email, coalesce(p.name, '') as name
+    from subscriptions s join auth.users u on u.id = s.user_id left join profiles p on p.id = s.user_id
+  ) x;
+  return r;
+end $$;
+
+create or replace function public.admin_add_subscription(member_email text, p_plan text, p_status text, p_amount numeric, p_ends_at timestamptz, p_note text) returns json
+language plpgsql security definer set search_path = public as $$
+declare uid uuid;
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  select id into uid from auth.users where lower(email) = lower(trim(member_email));
+  if uid is null then return json_build_object('ok', false, 'reason', 'no_account'); end if;
+  insert into subscriptions (user_id, plan, status, amount, ends_at, note)
+  values (uid, coalesce(nullif(trim(p_plan), ''), 'Pro'), coalesce(p_status, 'active'), p_amount, p_ends_at, nullif(trim(p_note), ''));
+  return json_build_object('ok', true);
+end $$;
+
+create or replace function public.admin_set_subscription_status(sub_id uuid, p_status text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  update subscriptions set status = p_status where id = sub_id;
+end $$;
+
+create or replace function public.admin_delete_subscription(sub_id uuid) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  delete from subscriptions where id = sub_id;
+end $$;
+
+create or replace function public.admin_add_admin(member_email text) returns json
+language plpgsql security definer set search_path = public as $$
+declare uid uuid;
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  select id into uid from auth.users where lower(email) = lower(trim(member_email));
+  if uid is null then return json_build_object('ok', false, 'reason', 'no_account'); end if;
+  insert into admins (user_id) values (uid) on conflict do nothing;
+  return json_build_object('ok', true);
+end $$;
+
+create or replace function public.create_api_token(p_label text) returns json
+language plpgsql security definer set search_path = public as $$
+declare tok text;
+begin
+  if auth.uid() is null then raise exception 'Not signed in'; end if;
+  if (select count(*) from api_tokens where user_id = auth.uid()) >= 10 then raise exception 'Too many keys'; end if;
+  tok := 'jas_' || replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
+  insert into api_tokens (user_id, label, token_hash, prefix)
+  values (auth.uid(), coalesce(nullif(trim(p_label), ''), 'AI connector'), encode(sha256(convert_to(tok, 'UTF8')), 'hex'), left(tok, 10));
+  return json_build_object('token', tok);
+end $$;
+
+grant execute on function public.admin_status(), public.claim_admin(), public.touch_seen(), public.admin_stats(), public.admin_users(),
+  public.admin_subscriptions(), public.admin_add_subscription(text, text, text, numeric, timestamptz, text),
+  public.admin_set_subscription_status(uuid, text), public.admin_delete_subscription(uuid), public.admin_add_admin(text),
+  public.create_api_token(text) to authenticated;
