@@ -154,3 +154,34 @@ revoke execute on function public.admin_status(), public.claim_admin(), public.t
 grant execute on function public.admin_status(), public.claim_admin(), public.touch_seen(), public.admin_stats(), public.admin_users(),
   public.admin_subscriptions(), public.admin_add_subscription(text, text, text, numeric, timestamptz, text),
   public.admin_set_subscription_status(uuid, text), public.admin_delete_subscription(uuid), public.admin_add_admin(text) to authenticated;
+
+-- ============ AI connector (MCP) ============
+-- Personal keys that let an AI assistant open a user's boards. Only a hash of each key is stored.
+create table if not exists public.api_tokens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  label text not null default 'AI connector',
+  token_hash text unique not null,
+  prefix text not null,
+  created_at timestamptz not null default now(),
+  last_used_at timestamptz
+);
+alter table public.api_tokens enable row level security;
+drop policy if exists "see own keys" on public.api_tokens;
+create policy "see own keys" on public.api_tokens for select using (user_id = auth.uid());
+drop policy if exists "delete own keys" on public.api_tokens;
+create policy "delete own keys" on public.api_tokens for delete using (user_id = auth.uid());
+
+create or replace function public.create_api_token(p_label text) returns json
+language plpgsql security definer set search_path = public as $$
+declare tok text;
+begin
+  if auth.uid() is null then raise exception 'Not signed in'; end if;
+  if (select count(*) from api_tokens where user_id = auth.uid()) >= 10 then raise exception 'Too many keys'; end if;
+  tok := 'jas_' || replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
+  insert into api_tokens (user_id, label, token_hash, prefix)
+  values (auth.uid(), coalesce(nullif(trim(p_label), ''), 'AI connector'), encode(sha256(convert_to(tok, 'UTF8')), 'hex'), left(tok, 10));
+  return json_build_object('token', tok);
+end $$;
+revoke execute on function public.create_api_token(text) from public, anon;
+grant execute on function public.create_api_token(text) to authenticated;

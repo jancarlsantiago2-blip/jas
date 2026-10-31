@@ -205,6 +205,13 @@ body.online [data-local],body:not(.online) [data-online]{display:none!important}
 #sh-form input{flex:1;min-width:0}
 #sh-msg{font-size:.86rem;margin:.2rem 0 .6rem;color:var(--muted)}
 #sh-msg.bad{color:var(--bad,#b3261e)}
+#ai-form,#ai-row{display:flex;gap:8px;margin:.7rem 0 .3rem}
+#ai-form input,#ai-row input{flex:1;min-width:0}
+#ai-row input{font-family:var(--mono,monospace);font-size:.8rem}
+#ai-msg{font-size:.86rem;margin:.2rem 0 .6rem;color:var(--muted)}
+#ai-msg.bad{color:var(--bad,#b3261e)}
+.ai-steps{margin:.5rem 0 .8rem;padding-left:1.2rem;font-size:.9rem;display:grid;gap:4px}
+@media (max-width:640px){#l-ai{font-size:0;padding:.45rem .7rem!important}#l-ai::after{content:"AI";font-size:.9rem}}
 .mlist{list-style:none;padding:0;margin:.4rem 0;display:grid;gap:6px}
 .mlist li{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:12px}
 .mlist .pa{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:.85rem;flex:none}
@@ -447,6 +454,7 @@ nav.main button[aria-current="page"]{background:rgba(43,255,136,.1);color:var(--
       <div class="acts user">
         <div class="avatar" id="l-initial">J</div>
         <span class="uname" id="l-name">Juan</span>
+        <button class="btn ghost" id="l-ai" data-online style="padding:.45rem .8rem" title="Connect an AI assistant to your boards">AI connector</button>
         <button class="btn ghost" id="l-logout" style="padding:.45rem .8rem">Log out</button>
       </div>
     </div>
@@ -736,6 +744,7 @@ nav.main button[aria-current="page"]{background:rgba(43,255,136,.1);color:var(--
     <p data-online>Your account (name, email, and a securely hashed password) and your boards, including images, are stored with our database provider, Supabase, so you can sign in on any device and share boards. Your password is never stored in readable form.</p>
     <h4>4. Sharing</h4>
     <p data-local>We do not sell or share your personal information with third parties. Boards are private to the browser they were made in.</p>
+    <p data-online>If you make an AI connector key, the AI app you give it to can read your boards and add to them until you remove the key. Only a scrambled copy of each key is stored.</p>
     <p data-online>We do not sell your personal information. A board is visible only to you and the people you add to it. People on the same board can see each other's name and email.</p>
     <h4>5. Your rights</h4>
     <p>You may access, correct, or delete your data at any time. You can delete a board from your Boards page and withdraw cookie consent through Cookie settings.</p>
@@ -817,6 +826,27 @@ nav.main button[aria-current="page"]{background:rgba(43,255,136,.1);color:var(--
     <p id="sh-msg" role="status"></p>
     <h4>People on this board</h4>
     <ul class="mlist" id="sh-list"></ul>
+  </div>
+  <div class="dlg-f"><button class="btn ghost" data-close>Done</button></div>
+</dialog>
+
+<dialog id="dlg-ai">
+  <div class="dlg-h"><h2>AI connector</h2><button class="x-btn" data-close aria-label="Close">×</button></div>
+  <div class="dlg-b">
+    <p>Let an AI assistant such as Claude read your boards and add notes for you. Make a key, then paste its link into your AI app.</p>
+    <form id="ai-form" novalidate><input id="ai-label" type="text" maxlength="40" placeholder="Name it, like Claude" autocomplete="off" aria-label="Key name"><button class="btn" type="submit">Make a key</button></form>
+    <p id="ai-msg" role="status"></p>
+    <div id="ai-new" hidden>
+      <p class="notice"><b>Copy this link now.</b> For your safety it is shown only once. Anyone with it can open your boards, so keep it private.</p>
+      <div id="ai-row"><input id="ai-url" readonly aria-label="Connector link"><button class="btn" type="button" id="ai-copy">Copy</button></div>
+      <ol class="ai-steps">
+        <li>In Claude, open <b>Settings</b>, then <b>Connectors</b>.</li>
+        <li>Press <b>Add custom connector</b>.</li>
+        <li>Name it <b>JAS</b> and paste the link. Press <b>Add</b>.</li>
+      </ol>
+    </div>
+    <h4>Your keys</h4>
+    <ul class="mlist" id="ai-list"></ul>
   </div>
   <div class="dlg-f"><button class="btn ghost" data-close>Done</button></div>
 </dialog>
@@ -2060,6 +2090,39 @@ $('#ck-save').onclick = ()=>{ setCookie({pref:$('#ck-pref').checked, analytics:$
   const sess = sessionUser();
   if(sess) login(sess, true); else showAuth('in');
 })();
+
+/* ---------------- AI connector keys ---------------- */
+const MCP_URL = () => CLOUD_CONFIG.url.replace(/\/$/,'') + '/functions/v1/jas-mcp';
+function aiMsg(t, bad){ const m=$('#ai-msg'); m.textContent=t; m.classList.toggle('bad', !!bad); }
+async function loadKeys(){
+  const list=$('#ai-list');
+  list.innerHTML='<li><span class="mi"><span>Loading…</span></span></li>';
+  const {data, error} = await sb.from('api_tokens').select('id,label,prefix,created_at,last_used_at').order('created_at',{ascending:false});
+  if(error){ list.innerHTML='<li><span class="mi"><span>'+(/api_tokens|schema cache|does not exist/i.test(error.message||'') ? 'The AI connector is not set up yet.' : 'Could not load your keys. Check your connection.')+'</span></span></li>'; return; }
+  if(!data.length){ list.innerHTML='<li><span class="mi"><span>No keys yet.</span></span></li>'; return; }
+  const d = t => t ? new Date(t).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : '';
+  list.innerHTML = data.map(k=>`<li><span class="mi"><b>${esc(k.label)}</b><span>${esc(k.prefix)}… · made ${d(k.created_at)} · ${k.last_used_at?'last used '+d(k.last_used_at):'not used yet'}</span></span><button class="btn ghost sm" data-revoke="${k.id}">Remove</button></li>`).join('');
+  list.querySelectorAll('[data-revoke]').forEach(x=>x.onclick=async ()=>{
+    if(x.dataset.sure!=='1'){ x.dataset.sure='1'; x.textContent='Sure?'; return; }
+    const {error} = await sb.from('api_tokens').delete().eq('id', x.dataset.revoke);
+    aiMsg(error ? 'Could not remove the key. Check your connection.' : 'Key removed. Any AI app using it can no longer open your boards.', !!error); loadKeys();
+  });
+}
+$('#l-ai').onclick = ()=>{ if(!cloud()) return; aiMsg(''); $('#ai-new').hidden=true; $('#ai-label').value=''; $('#dlg-ai').showModal(); loadKeys(); };
+$('#ai-form').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const btn=e.submitter||$('#ai-form button'); btn.disabled=true; aiMsg('Making a key…');
+  const {data, error} = await sb.rpc('create_api_token', { p_label: $('#ai-label').value.trim() });
+  btn.disabled=false;
+  if(error){ aiMsg(/too many/i.test(error.message||'') ? 'You have 10 keys already. Remove one first.' : /create_api_token|schema cache|not find/i.test(error.message||'') ? 'The AI connector is not set up yet.' : 'Could not make a key. Check your connection.', true); return; }
+  $('#ai-url').value = MCP_URL() + '?key=' + data.token;
+  $('#ai-new').hidden=false; aiMsg(''); $('#ai-label').value=''; loadKeys();
+  $('#ai-url').focus(); $('#ai-url').select();
+});
+$('#ai-copy').onclick = async ()=>{
+  const v=$('#ai-url').value;
+  try{ await navigator.clipboard.writeText(v); toast('Link copied'); }catch(e){ $('#ai-url').select(); toast('Press Ctrl+C to copy'); }
+};
 </script>
 </body>
 </html>

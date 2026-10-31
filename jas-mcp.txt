@@ -1,0 +1,182 @@
+// JAS AI connector (MCP server) — Supabase Edge Function "jas-mcp".
+// Lets an AI assistant (Claude and others) list, read and add to the JAS boards of the person who made the key.
+// Deploy with "Verify JWT" turned OFF; the JAS key in the URL (?key=...) is the login.
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, content-type, mcp-session-id, mcp-protocol-version, accept",
+  "Access-Control-Expose-Headers": "mcp-session-id",
+};
+const COLORS: Record<string, string> = { yellow: "#fff3a3", green: "#c9f0d3", teal: "#b8ecdf", blue: "#cfe3ff", pink: "#ffd6e3", orange: "#ffd9b0", purple: "#e2d6ff", white: "#ffffff", gray: "#e6e9e7" };
+const STICKY = { w: 200, h: 200, fs: 16 };
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+
+async function sha256(s: string) {
+  const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+async function whoIs(req: Request): Promise<string | null> {
+  const url = new URL(req.url);
+  const key = url.searchParams.get("key") || (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!key.startsWith("jas_")) return null;
+  const { data } = await db.from("api_tokens").select("id,user_id").eq("token_hash", await sha256(key)).maybeSingle();
+  if (!data) return null;
+  db.from("api_tokens").update({ last_used_at: new Date().toISOString() }).eq("id", data.id).then(() => {});
+  return data.user_id;
+}
+
+class ToolError extends Error {}
+async function memberBoard(user: string, boardId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(String(boardId || ""))) throw new ToolError("board_id must be a board id from list_boards.");
+  const { data: m } = await db.from("board_members").select("board_id").eq("board_id", boardId).eq("user_id", user).maybeSingle();
+  if (!m) throw new ToolError("No board with that id, or you don't have access to it.");
+  const { data: b, error } = await db.from("boards").select("id,title,data,updated_at").eq("id", boardId).single();
+  if (error || !b) throw new ToolError("Could not open that board.");
+  return b;
+}
+// Change a board and save it the same way the JAS app does, so people with the board open see the change live.
+async function changeBoard(user: string, boardId: string, fn: (d: any) => string) {
+  for (let i = 0; i < 4; i++) {
+    const b = await memberBoard(user, boardId);
+    const d = { items: [], links: [], labels: [], assets: {}, ...(b.data || {}) };
+    const msg = fn(d);
+    const oldRev = b.data?._rev ?? null;
+    d._rev = uid();
+    let q = db.from("boards").update({ data: d, updated_at: new Date().toISOString(), updated_by: user }).eq("id", boardId);
+    q = oldRev == null ? q.is("data->_rev", null) : q.eq("data->>_rev", oldRev);
+    const { data, error } = await q.select("id");
+    if (error) throw new ToolError("Could not save the board. Try again.");
+    if (data.length) return msg;
+  }
+  throw new ToolError("The board is busy with other edits right now. Try again in a moment.");
+}
+function placeBelow(d: any, n: number) {
+  const items = d.items || [];
+  const left = items.length ? Math.min(...items.map((i: any) => i.x)) : 0;
+  const top = items.length ? Math.max(...items.map((i: any) => i.y + i.h)) + 80 : 0;
+  const cols = Math.min(4, n);
+  return (k: number) => ({ x: left + (k % cols) * (STICKY.w + 24), y: top + Math.floor(k / cols) * (STICKY.h + 24) });
+}
+function stickies(d: any, notes: any[]) {
+  if (!Array.isArray(notes) || !notes.length) throw new ToolError("Give at least one note.");
+  if (notes.length > 50) throw new ToolError("Add at most 50 notes at a time.");
+  const at = placeBelow(d, notes.length);
+  let z = Math.max(0, ...(d.items || []).map((i: any) => i.z || 0));
+  return notes.map((n: any, k: number) => {
+    const text = String(typeof n === "string" ? n : n?.text ?? "").slice(0, 2000);
+    const color = COLORS[String(n?.color || "yellow").toLowerCase()] || COLORS.yellow;
+    return { id: uid(), type: "sticky", ...at(k), w: STICKY.w, h: STICKY.h, text, color, fs: STICKY.fs, label: null, shape: "rect", z: ++z };
+  });
+}
+const defaultLabels = () => [
+  { id: uid(), name: "Idea", color: "#1f7a45" }, { id: uid(), name: "To do", color: "#1d4ed8" },
+  { id: uid(), name: "Important", color: "#b3261e" }, { id: uid(), name: "Done", color: "#44524a" },
+];
+
+const colorProp = { type: "string", enum: Object.keys(COLORS), description: "Note color. Default yellow." };
+const notesProp = { type: "array", description: "The notes to add, in reading order.", items: { type: "object", properties: { text: { type: "string" }, color: colorProp }, required: ["text"] } };
+const TOOLS = [
+  { name: "list_boards", description: "List the JAS boards this person can open (their own and ones shared with them).", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+  { name: "read_board", description: "Read everything on one JAS board: notes, text, shapes, labels and the arrows between them.", inputSchema: { type: "object", properties: { board_id: { type: "string" } }, required: ["board_id"] }, annotations: { readOnlyHint: true } },
+  { name: "create_board", description: "Create a new JAS board, optionally with sticky notes already on it.", inputSchema: { type: "object", properties: { title: { type: "string" }, notes: notesProp }, required: ["title"] } },
+  { name: "add_sticky_notes", description: "Add sticky notes to a JAS board. They are placed in a neat grid below what is already there.", inputSchema: { type: "object", properties: { board_id: { type: "string" }, notes: notesProp }, required: ["board_id", "notes"] } },
+  { name: "update_item_text", description: "Change the text of one note, text box or shape on a board.", inputSchema: { type: "object", properties: { board_id: { type: "string" }, item_id: { type: "string" }, text: { type: "string" } }, required: ["board_id", "item_id", "text"] } },
+  { name: "connect_items", description: "Draw an arrow from one item to another on a board.", inputSchema: { type: "object", properties: { board_id: { type: "string" }, from_id: { type: "string" }, to_id: { type: "string" } }, required: ["board_id", "from_id", "to_id"] } },
+];
+
+async function callTool(user: string, name: string, a: any): Promise<string> {
+  a = a || {};
+  if (name === "list_boards") {
+    const { data: ms } = await db.from("board_members").select("board_id").eq("user_id", user);
+    const ids = (ms || []).map((m: any) => m.board_id);
+    if (!ids.length) return "No boards yet.";
+    const { data } = await db.from("boards").select("id,title,owner,updated_at,items:data->items").in("id", ids).order("updated_at", { ascending: false });
+    return JSON.stringify((data || []).map((b: any) => ({ id: b.id, title: b.title, yours: b.owner === user, items: (b.items || []).length, updated: b.updated_at })), null, 1);
+  }
+  if (name === "read_board") {
+    const b = await memberBoard(user, a.board_id);
+    const d = b.data || {};
+    const labels = Object.fromEntries((d.labels || []).map((l: any) => [l.id, l.name]));
+    const colorName = Object.fromEntries(Object.entries(COLORS).map(([k, v]) => [v, k]));
+    return JSON.stringify({
+      id: b.id, title: b.title, updated: b.updated_at,
+      items: (d.items || []).filter((i: any) => i.type !== "image").map((i: any) => ({ id: i.id, type: i.type === "shape" ? i.shape : i.type, text: i.text, label: labels[i.label] ?? null, color: colorName[i.color] ?? i.color, x: i.x, y: i.y })),
+      images: (d.items || []).filter((i: any) => i.type === "image").length,
+      arrows: (d.links || []).map((l: any) => ({ from: l.from, to: l.to })),
+    }, null, 1);
+  }
+  if (name === "create_board") {
+    const d: any = { items: [], links: [], labels: defaultLabels(), assets: {}, created: Date.now(), _rev: uid() };
+    if (a.notes?.length) d.items = stickies(d, a.notes);
+    const title = String(a.title || "Untitled board").slice(0, 120);
+    const { data, error } = await db.from("boards").insert({ title, owner: user, updated_by: user, data: d }).select("id").single();
+    if (error) throw new ToolError("Could not create the board.");
+    return `Created board "${title}" (id ${data.id}) with ${d.items.length} notes.`;
+  }
+  if (name === "add_sticky_notes") {
+    return changeBoard(user, a.board_id, (d) => {
+      const add = stickies(d, a.notes);
+      d.items.push(...add);
+      return `Added ${add.length} notes. New ids: ${add.map((i: any) => i.id).join(", ")}`;
+    });
+  }
+  if (name === "update_item_text") {
+    return changeBoard(user, a.board_id, (d) => {
+      const it = d.items.find((i: any) => i.id === a.item_id);
+      if (!it || it.type === "image") throw new ToolError("No note, text or shape with that id on this board.");
+      it.text = String(a.text ?? "").slice(0, 2000);
+      return "Updated.";
+    });
+  }
+  if (name === "connect_items") {
+    return changeBoard(user, a.board_id, (d) => {
+      const has = (id: string) => d.items.some((i: any) => i.id === id);
+      if (!has(a.from_id) || !has(a.to_id) || a.from_id === a.to_id) throw new ToolError("Both items must be different ids from this board.");
+      if (d.links.some((l: any) => l.from === a.from_id && l.to === a.to_id)) return "Those items are already connected.";
+      d.links.push({ id: uid(), from: a.from_id, to: a.to_id, arrow: true, color: "#2b3a30" });
+      return "Connected.";
+    });
+  }
+  throw new ToolError("Unknown tool: " + name);
+}
+
+async function handle(user: string, m: any) {
+  const ok = (result: unknown) => ({ jsonrpc: "2.0", id: m.id, result });
+  const err = (code: number, message: string) => ({ jsonrpc: "2.0", id: m.id ?? null, error: { code, message } });
+  if (!m || m.jsonrpc !== "2.0" || typeof m.method !== "string") return err(-32600, "Invalid request");
+  if (m.id === undefined) return null; // a notification, nothing to answer
+  switch (m.method) {
+    case "initialize": {
+      const v = m.params?.protocolVersion;
+      return ok({ protocolVersion: ["2025-06-18", "2025-03-26", "2024-11-05"].includes(v) ? v : "2025-06-18", capabilities: { tools: {} },
+        serverInfo: { name: "jas", title: "JAS boards", version: "1.0.0" },
+        instructions: "JAS is a planning board app. Use list_boards first to find a board id, then read_board before changing a board." });
+    }
+    case "ping": return ok({});
+    case "tools/list": return ok({ tools: TOOLS });
+    case "tools/call":
+      try { return ok({ content: [{ type: "text", text: await callTool(user, m.params?.name, m.params?.arguments) }] }); }
+      catch (e) { return ok({ isError: true, content: [{ type: "text", text: e instanceof ToolError ? e.message : "Something went wrong. Try again." }] }); }
+    default: return err(-32601, "Method not found: " + m.method);
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  if (req.method !== "POST") return new Response("JAS AI connector. Add this URL to your AI app as a custom connector.", { status: 405, headers: { ...CORS, Allow: "POST" } });
+  const user = await whoIs(req);
+  if (!user) return json({ jsonrpc: "2.0", id: null, error: { code: -32001, message: "Missing or wrong JAS key. Make a new one in JAS → AI connector." } }, 401);
+  let body: any;
+  try { body = await req.json(); } catch { return json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, 400); }
+  if (Array.isArray(body)) {
+    const out = (await Promise.all(body.map((m) => handle(user, m)))).filter(Boolean);
+    return out.length ? json(out) : new Response(null, { status: 202, headers: CORS });
+  }
+  const out = await handle(user, body);
+  return out ? json(out) : new Response(null, { status: 202, headers: CORS });
+});
