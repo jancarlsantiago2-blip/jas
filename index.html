@@ -1063,6 +1063,7 @@ function login(u, remember){
 async function loginCloud(user){
   const m = user.user_metadata || {};
   login({ id:user.id, email:user.email, name:(m.name||'').trim() || user.email.split('@')[0], focus:m.focus||'blank' }, true);
+  sb.rpc('touch_seen').then(()=>{}, ()=>{});   // for the admin panel's "last active"
   await refreshBoards(); if(!$('#lobby').hidden) renderLobby();
 }
 $('#logout').onclick = $('#l-logout').onclick = async ()=>{
